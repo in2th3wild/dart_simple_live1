@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:io';
+
 import 'package:get/get.dart';
 import 'package:simple_live_tv_app/app/constant.dart';
 import 'package:simple_live_tv_app/app/controller/app_settings_controller.dart';
@@ -49,7 +52,6 @@ class FollowUserService extends BasePageController<FollowUser> {
     }
   }
 
-  var updatedCount = 0;
   var updating = false.obs;
   @override
   Future<List<FollowUser>> getData(int page, int pageSize) async {
@@ -77,32 +79,76 @@ class FollowUserService extends BasePageController<FollowUser> {
     livingList.assignAll(list.where((x) => x.liveStatus.value == 2));
   }
 
-  void startUpdateStatus(List<FollowUser> followList) async {
-    updatedCount = 0;
-    updating.value = true;
-
-    var threadCount =
+  /// 获取最优并发数
+  /// 用户设置为 0 时根据 CPU 核心数自动计算
+  int _getConcurrency(int total) {
+    var userSetting =
         AppSettingsController.instance.updateFollowThreadCount.value;
 
-    var tasks = <Future>[];
-    for (var i = 0; i < threadCount; i++) {
-      tasks.add(
-        Future(() async {
-          var start = i * followList.length ~/ threadCount;
-          var end = (i + 1) * followList.length ~/ threadCount;
-
-          // 确保 end 不超出列表长度
-          if (end > followList.length) {
-            end = followList.length;
-          }
-          var items = followList.sublist(start, end);
-          for (var item in items) {
-            await updateLiveStatus(item);
-          }
-        }),
-      );
+    int concurrency;
+    if (userSetting <= 0) {
+      var cpuCount = Platform.numberOfProcessors;
+      concurrency = (cpuCount * 2.5).round().clamp(4, 20);
+    } else {
+      concurrency = userSetting;
     }
-    await Future.wait(tasks);
+
+    if (total > 0 && concurrency > total) {
+      concurrency = total;
+    }
+    return concurrency < 1 ? 1 : concurrency;
+  }
+
+  /// 按平台交错排列，避免单一平台阻塞
+  List<FollowUser> _interleaveByPlatform(List<FollowUser> list) {
+    var grouped = <String, Queue<FollowUser>>{};
+    for (var item in list) {
+      grouped.putIfAbsent(item.siteId, () => Queue<FollowUser>()).add(item);
+    }
+
+    var result = <FollowUser>[];
+    while (grouped.values.any((queue) => queue.isNotEmpty)) {
+      for (var queue in grouped.values) {
+        if (queue.isNotEmpty) {
+          result.add(queue.removeFirst());
+        }
+      }
+    }
+
+    return result;
+  }
+
+  void startUpdateStatus(List<FollowUser> followList) async {
+    updating.value = true;
+
+    if (followList.isEmpty) {
+      updating.value = false;
+      return;
+    }
+
+    var concurrency = _getConcurrency(followList.length);
+
+    Log.logPrint("开始更新关注状态，并发数: $concurrency，总数: ${followList.length}");
+
+    var taskQueue = Queue<FollowUser>.from(_interleaveByPlatform(followList));
+
+    Future<void> worker() async {
+      while (taskQueue.isNotEmpty) {
+        var item = taskQueue.removeFirst();
+        await updateLiveStatus(item);
+      }
+    }
+
+    var workers = <Future>[];
+    for (var i = 0; i < concurrency; i++) {
+      workers.add(worker());
+    }
+    await Future.wait(workers);
+
+    sortList();
+    updating.value = false;
+
+    Log.logPrint("关注状态更新完成");
   }
 
   Future updateLiveStatus(FollowUser item) async {
@@ -110,16 +156,8 @@ class FollowUserService extends BasePageController<FollowUser> {
       var site = Sites.allSites[item.siteId]!;
       item.liveStatus.value =
           (await site.liveSite.getLiveStatus(roomId: item.roomId)) ? 2 : 1;
-      //sortList();
-      //updateLivingList();
     } catch (e) {
       Log.logPrint(e);
-    } finally {
-      updatedCount++;
-      if (updatedCount >= list.length) {
-        sortList();
-        updating.value = false;
-      }
     }
   }
 

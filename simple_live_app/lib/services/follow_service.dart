@@ -40,9 +40,6 @@ class FollowService extends GetxService {
   /// 当前tag的用户列表
   RxList<FollowUser> curTagFollowList = RxList<FollowUser>();
 
-  /// 已经更新状态的数量
-  var updatedCount = 0;
-
   /// 是否正在更新
   var updating = false.obs;
 
@@ -190,7 +187,6 @@ class FollowService extends GetxService {
   }
 
   void startUpdateStatus() async {
-    updatedCount = 0;
     updating.value = true;
 
     var concurrency = getOptimalConcurrency();
@@ -219,6 +215,9 @@ class FollowService extends GetxService {
 
     await Future.wait(workers);
 
+    filterData();
+    updating.value = false;
+
     Log.logPrint("关注状态更新完成");
   }
 
@@ -239,12 +238,6 @@ class FollowService extends GetxService {
       Log.logPrint(e);
       item.liveStatus.value = 0;
       item.liveStartTime = null;
-    } finally {
-      updatedCount++;
-      if (updatedCount >= followList.length) {
-        filterData();
-        updating.value = false;
-      }
     }
   }
 
