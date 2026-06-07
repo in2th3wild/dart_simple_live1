@@ -75,8 +75,8 @@ class FollowUserController extends BasePageController<FollowUser> {
   }
 
   @override
-  Future refreshData() async {
-    await FollowService.instance.loadData();
+  Future refreshData({bool forceStatus = true}) async {
+    await FollowService.instance.loadData(forceUpdateStatus: forceStatus);
     updateTagList();
     filterData();
   }
@@ -189,7 +189,8 @@ class FollowUserController extends BasePageController<FollowUser> {
       final expectedStatus = liveStatus == 1 ? {0, 1} : {liveStatus};
       return FollowService.instance.sortFollowUsers(
         _distinctFollowUsers(
-          source.where((item) => expectedStatus.contains(item.liveStatus.value)),
+          source
+              .where((item) => expectedStatus.contains(item.liveStatus.value)),
         ),
       );
     }

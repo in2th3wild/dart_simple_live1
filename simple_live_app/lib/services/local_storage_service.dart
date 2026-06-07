@@ -59,6 +59,13 @@ class LocalStorageService extends GetxService {
   static const String kPlayerShowSuperChat = "PlayerShowSuperChat";
   static const String kLiveEventFlowEnable = "LiveEventFlowEnable";
   static const String kLiveEventFlowLimit = "LiveEventFlowLimit";
+  static const String kLiveEventFlowOverlayEnable =
+      "LiveEventFlowOverlayEnable";
+  static const String kLiveEventFlowWindowSeconds =
+      "LiveEventFlowWindowSeconds";
+  static const String kLiveEventFlowDisplaySeconds =
+      "LiveEventFlowDisplaySeconds";
+  static const String kLiveEventFlowMinCount = "LiveEventFlowMinCount";
   static const String kPlayerVolume = "PlayerVolume";
   static const String kPIPHideDanmu = "PIPHideDanmu";
   static const String kPIPHideDanmuDefaultMigrated =

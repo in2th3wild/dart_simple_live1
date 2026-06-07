@@ -292,16 +292,7 @@ class BiliBiliDanmaku implements LiveDanmaku {
   }
 
   String _buildTextMessage(String original, List<LiveMessageSpan> spans) {
-    if (spans.isEmpty) {
-      return original;
-    }
-    final buffer = StringBuffer();
-    for (final span in spans) {
-      if (span.isText) {
-        buffer.write(span.text);
-      }
-    }
-    return buffer.toString().trim();
+    return original;
   }
 
   Map<String, String> _extractEmojiMap(dynamic info, String message) {

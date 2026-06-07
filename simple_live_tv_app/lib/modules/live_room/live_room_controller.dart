@@ -79,10 +79,16 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   final Queue<String> _recentDanmuFingerprints = Queue<String>();
   final Map<String, int> _recentDanmuCounts = <String, int>{};
   int _recentDanmuEventsSincePrune = 0;
+  RxList<LiveRepeatedDanmuSummary> liveEventFlows =
+      <LiveRepeatedDanmuSummary>[].obs;
+  LiveRepeatedDanmuAggregator _liveEventFlowAggregator =
+      LiveRepeatedDanmuAggregator();
+  Timer? _liveEventFlowTimer;
 
   @override
   void onInit() {
     initTimer();
+    _startLiveEventFlowTimer();
     showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
     followed.value = DBService.instance.getFollowExist("${site.id}_$roomId");
 
@@ -134,17 +140,20 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         return;
       }
 
+      _recordLiveEventFlow(msg);
+
       if (!liveStatus.value || isBackground) {
         return;
       }
 
+      final renderEmoji = AppSettingsController.instance.danmuRenderEmoji.value;
+      final parts = renderEmoji ? _buildDanmakuContentParts(msg.spans) : null;
       addDanmaku([
         DanmakuContentItem(
           msg.message,
           color: Color.fromARGB(255, msg.color.r, msg.color.g, msg.color.b),
-          imageUrls: AppSettingsController.instance.danmuRenderEmoji.value
-              ? msg.imageUrls
-              : null,
+          imageUrls: renderEmoji && parts == null ? msg.imageUrls : null,
+          parts: parts,
         ),
       ]);
     } else if (msg.type == LiveMessageType.online) {
@@ -152,6 +161,30 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     } else if (msg.type == LiveMessageType.superChat) {
       //superChats.add(msg.data);
     }
+  }
+
+  List<DanmakuContentPart>? _buildDanmakuContentParts(
+    List<LiveMessageSpan>? spans,
+  ) {
+    final source = spans ?? const <LiveMessageSpan>[];
+    if (source.isEmpty) {
+      return null;
+    }
+    final parts = <DanmakuContentPart>[];
+    for (final span in source) {
+      if (span.isText) {
+        final text = span.text ?? "";
+        if (text.isNotEmpty) {
+          parts.add(DanmakuContentPart.text(text));
+        }
+      } else if (span.isImage) {
+        final imageUrl = (span.imageUrl ?? "").trim();
+        if (imageUrl.isNotEmpty) {
+          parts.add(DanmakuContentPart.image(imageUrl));
+        }
+      }
+    }
+    return parts.isEmpty ? null : parts;
   }
 
   bool _isDuplicateDanmu(LiveMessage msg) {
@@ -251,6 +284,69 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     _recentDanmuEventsSincePrune = 0;
   }
 
+  void _startLiveEventFlowTimer() {
+    _liveEventFlowTimer?.cancel();
+    _liveEventFlowTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _flushLiveEventFlow(),
+    );
+  }
+
+  void _recordLiveEventFlow(LiveMessage msg) {
+    if (msg.userName == "LiveSysMessage") {
+      return;
+    }
+    final settings = AppSettingsController.instance;
+    if (!settings.liveEventFlowEnable.value) {
+      clearLiveEventFlow();
+      return;
+    }
+    final text = _normalizeDanmuFingerprintPart(msg.message);
+    if (text.isEmpty) {
+      return;
+    }
+    _ensureLiveEventFlowAggregatorSettings();
+    _liveEventFlowAggregator.add(text);
+    _flushLiveEventFlow();
+  }
+
+  void _flushLiveEventFlow() {
+    final settings = AppSettingsController.instance;
+    if (!settings.liveEventFlowEnable.value) {
+      clearLiveEventFlow();
+      return;
+    }
+    _ensureLiveEventFlowAggregatorSettings();
+    final summaries = _liveEventFlowAggregator.preview(
+      displayTtl: Duration(
+        seconds: settings.effectiveLiveEventFlowDisplaySeconds,
+      ),
+    );
+    liveEventFlows.assignAll(summaries);
+  }
+
+  void _ensureLiveEventFlowAggregatorSettings() {
+    final settings = AppSettingsController.instance;
+    final countWindow = Duration(
+      seconds: settings.effectiveLiveEventFlowWindowSeconds,
+    );
+    final minDisplayCount = settings.effectiveLiveEventFlowMinCount;
+    if (_liveEventFlowAggregator.countWindow == countWindow &&
+        _liveEventFlowAggregator.minDisplayCount == minDisplayCount) {
+      return;
+    }
+    _liveEventFlowAggregator = LiveRepeatedDanmuAggregator(
+      countWindow: countWindow,
+      minDisplayCount: minDisplayCount,
+    );
+    liveEventFlows.clear();
+  }
+
+  void clearLiveEventFlow() {
+    _liveEventFlowAggregator.clear();
+    liveEventFlows.clear();
+  }
+
   /// 接收 WebSocket 关闭消息
   void onWSClose(String msg) {
     Log.d("弹幕服务器连接状态：$msg");
@@ -268,7 +364,6 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   /// 加载直播间信息
   void loadData() async {
     try {
-      SmartDialog.showLoading(msg: "");
       pageLoadding.value = true;
       detail.value = await site.liveSite.getRoomDetail(roomId: roomId);
 
@@ -287,7 +382,6 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     } catch (e) {
       SmartDialog.showToast(e.toString());
     } finally {
-      SmartDialog.dismiss(status: SmartStatus.loading);
       pageLoadding.value = false;
     }
   }
@@ -485,6 +579,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     // 清除全部消息
     liveDanmaku.stop();
     _clearDanmuDedupeState();
+    clearLiveEventFlow();
 
     danmakuController?.clear();
 
@@ -564,6 +659,8 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   @override
   void onClose() {
     liveDanmaku.stop();
+    _liveEventFlowTimer?.cancel();
+    clearLiveEventFlow();
 
     danmakuController = null;
     super.onClose();

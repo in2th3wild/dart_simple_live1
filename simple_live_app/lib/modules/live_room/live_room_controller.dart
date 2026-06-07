@@ -154,7 +154,7 @@ class LiveRoomController extends PlayerController
   bool _roomDisposed = false;
   int _loadGeneration = 0;
   final Set<String> _superChatFingerprints = <String>{};
-  final LiveRepeatedDanmuAggregator _liveEventFlowAggregator =
+  LiveRepeatedDanmuAggregator _liveEventFlowAggregator =
       LiveRepeatedDanmuAggregator();
   final Queue<String> _recentDanmuFingerprints = Queue<String>();
   final Map<String, int> _recentDanmuCounts = <String, int>{};
@@ -691,13 +691,14 @@ class LiveRoomController extends PlayerController
     final baseDelayMs = AppSettingsController.instance.getDanmuDelayMs(site.id);
     final totalDelayMs = baseDelayMs + (site.id == Constant.kHuya ? 1000 : 0);
     final delay = Duration(milliseconds: totalDelayMs.clamp(0, 6000));
+    final renderEmoji = AppSettingsController.instance.danmuRenderEmoji.value;
+    final parts = renderEmoji ? _buildDanmakuContentParts(msg.spans) : null;
     rememberDanmakuReplay(
       msg.message,
       color,
       delay: delay,
-      imageUrls: AppSettingsController.instance.danmuRenderEmoji.value
-          ? msg.imageUrls
-          : null,
+      imageUrls: renderEmoji && parts == null ? msg.imageUrls : null,
+      parts: parts,
     );
 
     void emit() {
@@ -710,9 +711,8 @@ class LiveRoomController extends PlayerController
         DanmakuContentItem(
           msg.message,
           color: color,
-          imageUrls: AppSettingsController.instance.danmuRenderEmoji.value
-              ? msg.imageUrls
-              : null,
+          imageUrls: renderEmoji && parts == null ? msg.imageUrls : null,
+          parts: parts,
         ),
       ]);
     }
@@ -730,6 +730,30 @@ class LiveRoomController extends PlayerController
       emit();
     });
     _pendingDanmakuTimers.add(timer);
+  }
+
+  List<DanmakuContentPart>? _buildDanmakuContentParts(
+    List<LiveMessageSpan>? spans,
+  ) {
+    final source = spans ?? const <LiveMessageSpan>[];
+    if (source.isEmpty) {
+      return null;
+    }
+    final parts = <DanmakuContentPart>[];
+    for (final span in source) {
+      if (span.isText) {
+        final text = span.text ?? "";
+        if (text.isNotEmpty) {
+          parts.add(DanmakuContentPart.text(text));
+        }
+      } else if (span.isImage) {
+        final imageUrl = (span.imageUrl ?? "").trim();
+        if (imageUrl.isNotEmpty) {
+          parts.add(DanmakuContentPart.image(imageUrl));
+        }
+      }
+    }
+    return parts.isEmpty ? null : parts;
   }
 
   String _buildSuperChatFingerprint(LiveSuperChatMessage message) {
@@ -893,7 +917,9 @@ class LiveRoomController extends PlayerController
     if (text.isEmpty) {
       return;
     }
+    _ensureLiveEventFlowAggregatorSettings();
     _liveEventFlowAggregator.add(text);
+    _flushLiveEventFlow();
   }
 
   void _flushLiveEventFlow() {
@@ -903,15 +929,34 @@ class LiveRoomController extends PlayerController
       liveEventFlows.clear();
       return;
     }
-    final summaries = _liveEventFlowAggregator.drain();
-    if (summaries.isEmpty) {
-      return;
-    }
-    liveEventFlows.insertAll(0, summaries);
+    _ensureLiveEventFlowAggregatorSettings();
+    final summaries = _liveEventFlowAggregator.preview(
+      displayTtl: Duration(
+        seconds: settings.effectiveLiveEventFlowDisplaySeconds,
+      ),
+    );
+    liveEventFlows.assignAll(summaries);
     final limit = settings.liveEventFlowLimit.value;
     if (liveEventFlows.length > limit) {
       liveEventFlows.removeRange(limit, liveEventFlows.length);
     }
+  }
+
+  void _ensureLiveEventFlowAggregatorSettings() {
+    final settings = AppSettingsController.instance;
+    final countWindow = Duration(
+      seconds: settings.effectiveLiveEventFlowWindowSeconds,
+    );
+    final minDisplayCount = settings.effectiveLiveEventFlowMinCount;
+    if (_liveEventFlowAggregator.countWindow == countWindow &&
+        _liveEventFlowAggregator.minDisplayCount == minDisplayCount) {
+      return;
+    }
+    _liveEventFlowAggregator = LiveRepeatedDanmuAggregator(
+      countWindow: countWindow,
+      minDisplayCount: minDisplayCount,
+    );
+    liveEventFlows.clear();
   }
 
   void clearLiveEventFlow() {
@@ -1195,11 +1240,8 @@ class LiveRoomController extends PlayerController
   void loadData() async {
     final loadGeneration = ++_loadGeneration;
     final loadStopwatch = Stopwatch()..start();
-    final showGlobalLoading = !Platform.isWindows;
+    _dismissLiveRoomLoadingOverlay();
     try {
-      if (showGlobalLoading) {
-        SmartDialog.showLoading(msg: "");
-      }
       loadError.value = false;
       error = null;
       errorStackTrace = null;
@@ -1295,14 +1337,16 @@ class LiveRoomController extends PlayerController
       error = e;
       errorStackTrace = stackTrace;
     } finally {
-      if (showGlobalLoading && _isCurrentLoad(loadGeneration)) {
-        SmartDialog.dismiss(status: SmartStatus.loading);
-      }
+      _dismissLiveRoomLoadingOverlay();
       loadStopwatch.stop();
       Log.i(
         "直播间加载流程结束：${site.id}/$roomId ${loadStopwatch.elapsedMilliseconds}ms",
       );
     }
+  }
+
+  void _dismissLiveRoomLoadingOverlay() {
+    unawaited(SmartDialog.dismiss(status: SmartStatus.loading));
   }
 
   bool _isCurrentLoad(int loadGeneration) {

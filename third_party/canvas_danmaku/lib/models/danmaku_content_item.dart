@@ -21,13 +21,30 @@ class DanmakuContentItem {
   /// 文本内表情图片地址
   final List<String>? imageUrls;
 
+  /// 按顺序排列的文本/图片片段。
+  ///
+  /// 为空时兼容旧逻辑：先绘制 [text]，再把 [imageUrls] 追加到末尾。
+  final List<DanmakuContentPart>? parts;
+
   DanmakuContentItem(
     this.text, {
     this.color = Colors.white,
     this.type = DanmakuItemType.scroll,
     this.selfSend = false,
     this.imageUrls,
+    this.parts,
   });
+}
+
+class DanmakuContentPart {
+  final String? text;
+  final String? imageUrl;
+
+  const DanmakuContentPart.text(this.text) : imageUrl = null;
+  const DanmakuContentPart.image(this.imageUrl) : text = null;
+
+  bool get isText => text != null;
+  bool get isImage => imageUrl != null;
 }
 
 class SpecialDanmakuContentItem extends DanmakuContentItem {

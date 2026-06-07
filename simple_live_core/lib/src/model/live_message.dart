@@ -36,7 +36,7 @@ class LiveMessage {
 
   /// 富文本消息片段。
   ///
-  /// 当前主要用于抖音：按平台返回的顺序保存文字和图片，方便聊天区
+  /// 按平台返回的顺序保存文字和图片，方便聊天区和悬浮弹幕
   /// 把表情插回原始位置。旧渲染端可继续只读 [message] 和 [imageUrls]。
   final List<LiveMessageSpan>? spans;
 

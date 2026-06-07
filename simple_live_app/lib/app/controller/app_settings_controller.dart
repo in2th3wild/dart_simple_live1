@@ -27,6 +27,15 @@ class AppSettingsController extends GetxController {
   static const int kLiveEventFlowDefaultLimit = 100;
   static const int kLiveEventFlowMinLimit = 100;
   static const int kLiveEventFlowMaxLimit = 500;
+  static const int kLiveEventFlowDefaultWindowSeconds = 30;
+  static const int kLiveEventFlowMinWindowSeconds = 5;
+  static const int kLiveEventFlowMaxWindowSeconds = 120;
+  static const int kLiveEventFlowDefaultDisplaySeconds = 10;
+  static const int kLiveEventFlowMinDisplaySeconds = 3;
+  static const int kLiveEventFlowMaxDisplaySeconds = 60;
+  static const int kLiveEventFlowDefaultMinCount = 5;
+  static const int kLiveEventFlowMinCount = 2;
+  static const int kLiveEventFlowMaxCount = 100;
 
   /// 缩放模式
   var scaleMode = 0.obs;
@@ -129,6 +138,28 @@ class AppSettingsController extends GetxController {
       LocalStorageService.instance.getValue(
         LocalStorageService.kLiveEventFlowLimit,
         kLiveEventFlowDefaultLimit,
+      ),
+    );
+    liveEventFlowOverlayEnable.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kLiveEventFlowOverlayEnable,
+      true,
+    );
+    liveEventFlowWindowSeconds.value = _normalizeLiveEventFlowWindowSeconds(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveEventFlowWindowSeconds,
+        kLiveEventFlowDefaultWindowSeconds,
+      ),
+    );
+    liveEventFlowDisplaySeconds.value = _normalizeLiveEventFlowDisplaySeconds(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveEventFlowDisplaySeconds,
+        kLiveEventFlowDefaultDisplaySeconds,
+      ),
+    );
+    liveEventFlowMinCount.value = _normalizeLiveEventFlowMinCount(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveEventFlowMinCount,
+        kLiveEventFlowDefaultMinCount,
       ),
     );
     superChatSortDesc.value = LocalStorageService.instance
@@ -1850,6 +1881,59 @@ class AppSettingsController extends GetxController {
 
   int _normalizeLiveEventFlowLimit(int value) {
     return value.clamp(kLiveEventFlowMinLimit, kLiveEventFlowMaxLimit).toInt();
+  }
+
+  var liveEventFlowOverlayEnable = true.obs;
+  void setLiveEventFlowOverlayEnable(bool e) {
+    liveEventFlowOverlayEnable.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveEventFlowOverlayEnable, e);
+  }
+
+  var liveEventFlowWindowSeconds = kLiveEventFlowDefaultWindowSeconds.obs;
+  int get effectiveLiveEventFlowWindowSeconds =>
+      _normalizeLiveEventFlowWindowSeconds(liveEventFlowWindowSeconds.value);
+  void setLiveEventFlowWindowSeconds(int e) {
+    final value = _normalizeLiveEventFlowWindowSeconds(e);
+    liveEventFlowWindowSeconds.value = value;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveEventFlowWindowSeconds, value);
+  }
+
+  int _normalizeLiveEventFlowWindowSeconds(int value) {
+    return value
+        .clamp(kLiveEventFlowMinWindowSeconds, kLiveEventFlowMaxWindowSeconds)
+        .toInt();
+  }
+
+  var liveEventFlowDisplaySeconds = kLiveEventFlowDefaultDisplaySeconds.obs;
+  int get effectiveLiveEventFlowDisplaySeconds =>
+      _normalizeLiveEventFlowDisplaySeconds(liveEventFlowDisplaySeconds.value);
+  void setLiveEventFlowDisplaySeconds(int e) {
+    final value = _normalizeLiveEventFlowDisplaySeconds(e);
+    liveEventFlowDisplaySeconds.value = value;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveEventFlowDisplaySeconds, value);
+  }
+
+  int _normalizeLiveEventFlowDisplaySeconds(int value) {
+    return value
+        .clamp(kLiveEventFlowMinDisplaySeconds, kLiveEventFlowMaxDisplaySeconds)
+        .toInt();
+  }
+
+  var liveEventFlowMinCount = kLiveEventFlowDefaultMinCount.obs;
+  int get effectiveLiveEventFlowMinCount =>
+      _normalizeLiveEventFlowMinCount(liveEventFlowMinCount.value);
+  void setLiveEventFlowMinCount(int e) {
+    final value = _normalizeLiveEventFlowMinCount(e);
+    liveEventFlowMinCount.value = value;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiveEventFlowMinCount, value);
+  }
+
+  int _normalizeLiveEventFlowMinCount(int value) {
+    return value.clamp(kLiveEventFlowMinCount, kLiveEventFlowMaxCount).toInt();
   }
 
   var danmuDedupeEnable = false.obs;

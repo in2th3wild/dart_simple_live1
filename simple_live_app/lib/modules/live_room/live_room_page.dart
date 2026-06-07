@@ -188,75 +188,27 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
-  Widget _buildDesktopOverlay(
-    BuildContext context, {
-    required bool hasLandscapeActionPanel,
-  }) {
-    if (!hasLandscapeActionPanel) {
-      return Positioned(
+  List<Widget> _buildDesktopOverlayButtons(BuildContext context) {
+    return [
+      Positioned(
         left: 8,
+        top: 8,
+        child: _buildDesktopOverlayIconButton(
+          tooltip: "返回",
+          icon: Icons.arrow_back,
+          onPressed: () => _handleBack(context),
+        ),
+      ),
+      Positioned(
         right: 8,
         top: 8,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildDesktopOverlayIconButton(
-              tooltip: "返回",
-              icon: Icons.arrow_back,
-              onPressed: () => _handleBack(context),
-            ),
-            _buildDesktopOverlayIconButton(
-              tooltip: "更多",
-              icon: Icons.more_horiz,
-              onPressed: showMore,
-            ),
-          ],
+        child: _buildDesktopOverlayIconButton(
+          tooltip: "更多",
+          icon: Icons.more_horiz,
+          onPressed: showMore,
         ),
-      );
-    }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final sidePanelWidth = _landscapeSideWidth(constraints.maxWidth);
-        return Positioned.fill(
-          child: Row(
-            children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: 8,
-                      top: 8,
-                      child: _buildDesktopOverlayIconButton(
-                        tooltip: "返回",
-                        icon: Icons.arrow_back,
-                        onPressed: () => _handleBack(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (sidePanelWidth > 0)
-                SizedBox(
-                  width: sidePanelWidth,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: _buildDesktopOverlayIconButton(
-                          tooltip: "更多",
-                          icon: Icons.more_horiz,
-                          onPressed: showMore,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
+      ),
+    ];
   }
 
   bool _allowsNativePopGesture() {
@@ -372,12 +324,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               body: Stack(
                 children: [
                   body,
-                  Obx(
-                    () => _buildDesktopOverlay(
-                      context,
-                      hasLandscapeActionPanel: hasLandscapeActionPanel,
-                    ),
-                  ),
+                  ..._buildDesktopOverlayButtons(context),
                 ],
               ),
             ),
@@ -1216,6 +1163,59 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               ),
               AppStyle.divider,
               Obx(
+                () => SettingsSwitch(
+                  title: "全屏显示重点动态",
+                  subtitle: "在播放器全屏时显示当前重复弹幕摘要",
+                  value: AppSettingsController
+                      .instance.liveEventFlowOverlayEnable.value,
+                  onChanged: AppSettingsController
+                      .instance.setLiveEventFlowOverlayEnable,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "动态统计跨度",
+                  subtitle: "多少秒内的重复弹幕合并计数",
+                  value: AppSettingsController
+                      .instance.liveEventFlowWindowSeconds.value,
+                  min: AppSettingsController.kLiveEventFlowMinWindowSeconds,
+                  max: AppSettingsController.kLiveEventFlowMaxWindowSeconds,
+                  step: 5,
+                  onChanged: AppSettingsController
+                      .instance.setLiveEventFlowWindowSeconds,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "动态展示时间",
+                  subtitle: "一条动态多久没有更新后自动消失",
+                  value: AppSettingsController
+                      .instance.liveEventFlowDisplaySeconds.value,
+                  min: AppSettingsController.kLiveEventFlowMinDisplaySeconds,
+                  max: AppSettingsController.kLiveEventFlowMaxDisplaySeconds,
+                  step: 1,
+                  onChanged: AppSettingsController
+                      .instance.setLiveEventFlowDisplaySeconds,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "动态起显次数",
+                  subtitle: "同一句重复达到多少次后进入重点动态",
+                  value: AppSettingsController
+                      .instance.liveEventFlowMinCount.value,
+                  min: AppSettingsController.kLiveEventFlowMinCount,
+                  max: AppSettingsController.kLiveEventFlowMaxCount,
+                  step: 1,
+                  onChanged:
+                      AppSettingsController.instance.setLiveEventFlowMinCount,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
                 () => SettingsNumber(
                   title: "动态保留数量",
                   subtitle: "控制动态页最多保留多少条摘要",
@@ -1863,6 +1863,8 @@ class _SubtitleModelTile extends StatelessWidget {
 }
 
 class _InteractiveChatText extends StatelessWidget {
+  static final RegExp _emojiTokenPattern = RegExp(r'\[[^\[\]]{1,16}\]');
+
   final String userName;
   final String? remark;
   final String message;
@@ -1909,12 +1911,42 @@ class _InteractiveChatText extends StatelessWidget {
             else if (span.isImage)
               _buildImageSpan(span.imageUrl!.trim()),
         if (richSpans.isEmpty) ...[
-          TextSpan(text: message),
-          for (final url in imageUrls ?? const <String>[])
-            if (url.trim().isNotEmpty) _buildImageSpan(url.trim()),
+          ..._buildFallbackContentSpans(),
         ],
       ],
     );
+  }
+
+  List<InlineSpan> _buildFallbackContentSpans() {
+    final urls = (imageUrls ?? const <String>[])
+        .map((url) => url.trim())
+        .where((url) => url.isNotEmpty)
+        .toList();
+    if (urls.isEmpty) {
+      return [TextSpan(text: message)];
+    }
+
+    final result = <InlineSpan>[];
+    var start = 0;
+    var imageIndex = 0;
+    for (final match in _emojiTokenPattern.allMatches(message)) {
+      if (imageIndex >= urls.length) {
+        break;
+      }
+      if (match.start > start) {
+        result.add(TextSpan(text: message.substring(start, match.start)));
+      }
+      result.add(_buildImageSpan(urls[imageIndex]));
+      imageIndex += 1;
+      start = match.end;
+    }
+    if (start < message.length) {
+      result.add(TextSpan(text: message.substring(start)));
+    }
+    for (; imageIndex < urls.length; imageIndex += 1) {
+      result.add(_buildImageSpan(urls[imageIndex]));
+    }
+    return result;
   }
 
   WidgetSpan _buildImageSpan(String url) {

@@ -248,6 +248,10 @@ class DouyinDanmaku implements LiveDanmaku {
     ChatMessage chatMessage,
     List<LiveMessageSpan> spans,
   ) {
+    final content = chatMessage.content.trim();
+    if (content.isNotEmpty) {
+      return content;
+    }
     if (spans.isEmpty) {
       return chatMessage.content;
     }

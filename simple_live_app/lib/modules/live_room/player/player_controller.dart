@@ -28,6 +28,7 @@ class _DanmakuReplayEntry {
   final String message;
   final Color color;
   final List<String>? imageUrls;
+  final List<DanmakuContentPart>? parts;
   final DateTime visibleFrom;
   final DateTime visibleUntil;
 
@@ -35,6 +36,7 @@ class _DanmakuReplayEntry {
     required this.message,
     required this.color,
     this.imageUrls,
+    this.parts,
     required this.visibleFrom,
     required this.visibleUntil,
   });
@@ -301,6 +303,7 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
     Color color, {
     Duration delay = Duration.zero,
     List<String>? imageUrls,
+    List<DanmakuContentPart>? parts,
   }) {
     var durationSeconds =
         AppSettingsController.instance.danmuSpeed.value.toInt();
@@ -314,6 +317,7 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
         message: message,
         color: color,
         imageUrls: imageUrls,
+        parts: parts,
         visibleFrom: visibleFrom,
         visibleUntil: visibleFrom.add(Duration(seconds: durationSeconds)),
       ),
@@ -362,6 +366,7 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
           item.message,
           color: item.color,
           imageUrls: item.imageUrls,
+          parts: item.parts,
         ),
       );
     }

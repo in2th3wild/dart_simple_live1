@@ -47,6 +47,11 @@ class SettingsController extends BaseController
   var danmakuAreaFoucsNode = AppFocusNode();
   var danmakuOpacityFoucsNode = AppFocusNode();
   var danmakuStorkeFoucsNode = AppFocusNode();
+  var liveEventFlowFoucsNode = AppFocusNode();
+  var liveEventFlowOverlayFoucsNode = AppFocusNode();
+  var liveEventFlowWindowFoucsNode = AppFocusNode();
+  var liveEventFlowDisplayFoucsNode = AppFocusNode();
+  var liveEventFlowMinCountFoucsNode = AppFocusNode();
   var danmakuDedupeFoucsNode = AppFocusNode();
   var danmakuDedupeModeFoucsNode = AppFocusNode();
   var danmakuDedupeWindowFoucsNode = AppFocusNode();
@@ -54,7 +59,6 @@ class SettingsController extends BaseController
 
   var autoUpdateFollowEnableFocusNode = AppFocusNode();
   var autoUpdateFollowDurationFocusNode = AppFocusNode();
-  var updateFollowThreadFocusNode = AppFocusNode();
 
   var bilibiliFoucsNode = AppFocusNode();
   var versionFocusNode = AppFocusNode();

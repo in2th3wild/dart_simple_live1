@@ -65,6 +65,13 @@ class LocalStorageService extends GetxService {
   /// 重点动态
   static const String kLiveEventFlowEnable = "LiveEventFlowEnable";
   static const String kLiveEventFlowLimit = "LiveEventFlowLimit";
+  static const String kLiveEventFlowOverlayEnable =
+      "LiveEventFlowOverlayEnable";
+  static const String kLiveEventFlowWindowSeconds =
+      "LiveEventFlowWindowSeconds";
+  static const String kLiveEventFlowDisplaySeconds =
+      "LiveEventFlowDisplaySeconds";
+  static const String kLiveEventFlowMinCount = "LiveEventFlowMinCount";
 
   /// 重复弹幕过滤
   static const String kDanmuDedupeEnable = "DanmuDedupeEnable";

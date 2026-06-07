@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '/models/danmaku_content_item.dart';
 
 class Utils {
+  static final RegExp _emojiTokenPattern = RegExp(r'\[[^\[\]]{1,16}\]');
+
   static String normalizeImageUrl(String url) {
     final value = url.trim();
     if (value.startsWith("asset://")) {
@@ -19,9 +21,14 @@ class Utils {
     double fontSize,
     int fontWeight,
   ) {
+    final parts = contentParts(content);
+    final text = parts
+        .where((part) => part.isText)
+        .map((part) => part.text ?? "")
+        .join();
     final textPainter = TextPainter(
       text: TextSpan(
-        text: content.text,
+        text: text,
         style: TextStyle(
           fontSize: fontSize,
           fontWeight: FontWeight.values[fontWeight],
@@ -29,9 +36,7 @@ class Utils {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    final imageCount = (content.imageUrls ?? const <String>[])
-        .where((url) => url.trim().isNotEmpty)
-        .length;
+    final imageCount = imageUrlsForContent(content).length;
     final imageSize = fontSize * 1.25;
     return Size(
       textPainter.width + imageCount * imageSize,
@@ -90,10 +95,7 @@ class Utils {
     Offset offset,
     Map<String, ui.Image> imageCache,
   ) {
-    final imageUrls = (content.imageUrls ?? const <String>[])
-        .map(normalizeImageUrl)
-        .where((url) => url.isNotEmpty)
-        .toList();
+    final imageUrls = imageUrlsForContent(content);
     if (imageUrls.isEmpty) {
       return;
     }
@@ -120,22 +122,69 @@ class Utils {
     }
   }
 
+  static List<DanmakuContentPart> contentParts(DanmakuContentItem content) {
+    final parts = content.parts ?? const <DanmakuContentPart>[];
+    if (parts.isNotEmpty) {
+      return parts;
+    }
+    final imageUrls = (content.imageUrls ?? const <String>[])
+        .where((url) => url.trim().isNotEmpty)
+        .toList();
+    if (imageUrls.isEmpty) {
+      return [
+        if (content.text.isNotEmpty) DanmakuContentPart.text(content.text),
+      ];
+    }
+
+    final result = <DanmakuContentPart>[];
+    var start = 0;
+    var imageIndex = 0;
+    for (final match in _emojiTokenPattern.allMatches(content.text)) {
+      if (imageIndex >= imageUrls.length) {
+        break;
+      }
+      if (match.start > start) {
+        result.add(
+          DanmakuContentPart.text(content.text.substring(start, match.start)),
+        );
+      }
+      result.add(DanmakuContentPart.image(imageUrls[imageIndex]));
+      imageIndex += 1;
+      start = match.end;
+    }
+    if (start < content.text.length) {
+      result.add(DanmakuContentPart.text(content.text.substring(start)));
+    }
+    for (; imageIndex < imageUrls.length; imageIndex += 1) {
+      result.add(DanmakuContentPart.image(imageUrls[imageIndex]));
+    }
+    return result;
+  }
+
+  static List<String> imageUrlsForContent(DanmakuContentItem content) {
+    return contentParts(content)
+        .where((part) => part.isImage)
+        .map((part) => normalizeImageUrl(part.imageUrl ?? ""))
+        .where((url) => url.isNotEmpty)
+        .toList();
+  }
+
   static void _appendContent(
     ui.ParagraphBuilder builder,
     DanmakuContentItem content,
     double fontSize,
   ) {
-    builder.addText(content.text);
     final imageSize = fontSize * 1.25;
-    for (final url in content.imageUrls ?? const <String>[]) {
-      if (url.trim().isEmpty) {
-        continue;
+    for (final part in contentParts(content)) {
+      if (part.isText) {
+        builder.addText(part.text ?? "");
+      } else if (part.isImage && (part.imageUrl ?? "").trim().isNotEmpty) {
+        builder.addPlaceholder(
+          imageSize,
+          imageSize,
+          ui.PlaceholderAlignment.middle,
+        );
       }
-      builder.addPlaceholder(
-        imageSize,
-        imageSize,
-        ui.PlaceholderAlignment.middle,
-      );
     }
   }
 }

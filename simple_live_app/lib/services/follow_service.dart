@@ -159,7 +159,10 @@ class FollowService extends GetxService {
     }
   }
 
-  Future<void> loadData({bool updateStatus = true}) async {
+  Future<void> loadData({
+    bool updateStatus = true,
+    bool forceUpdateStatus = false,
+  }) async {
     var list = DBService.instance.getFollowList();
     getAllTagList();
     if (list.isEmpty) {
@@ -169,7 +172,7 @@ class FollowService extends GetxService {
     }
     followList.assignAll(list);
     if (updateStatus) {
-      unawaited(startUpdateStatus());
+      unawaited(startUpdateStatus(force: forceUpdateStatus));
     }
   }
 
@@ -177,13 +180,19 @@ class FollowService extends GetxService {
   /// 后台按关注规模自动控制，不再读取用户配置，避免超大关注列表刷崩。
   int getOptimalConcurrency({int? totalCount}) {
     final count = totalCount ?? followList.length;
-    if (count <= 200) {
+    if (count <= 0) {
+      return 1;
+    }
+    if (count <= 300) {
+      return count < 48 ? count : 48;
+    }
+    if (count <= 1000) {
       return 32;
     }
-    if (count <= 800) {
+    if (count <= 3000) {
       return 20;
     }
-    if (count <= 2000) {
+    if (count <= 5000) {
       return 12;
     }
     return 8;

@@ -136,8 +136,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
   }
 
   void _precacheEmojiImages(DanmakuContentItem content) {
-    for (final url in content.imageUrls ?? const <String>[]) {
-      final value = Utils.normalizeImageUrl(url);
+    for (final value in Utils.imageUrlsForContent(content)) {
       if (value.isEmpty ||
           _emojiImageCache.containsKey(value) ||
           _loadingEmojiImageUrls.contains(value)) {

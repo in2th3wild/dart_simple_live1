@@ -281,29 +281,6 @@ class SettingsPage extends GetView<SettingsController> {
             },
           ),
         ),
-        AppStyle.vGap24,
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.updateFollowThreadFocusNode,
-            autofocus: controller.updateFollowThreadFocusNode.isFoucsed.value,
-            title: "更新线程数",
-            items: const {
-              0: "自动",
-              1: "1",
-              2: "2",
-              3: "3",
-              4: "4",
-              6: "6",
-              8: "8 默认",
-              10: "10",
-              12: "12",
-            },
-            value: AppSettingsController.instance.updateFollowThreadCount.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setUpdateFollowThreadCount(e);
-            },
-          ),
-        ),
       ],
     );
   }
@@ -430,6 +407,108 @@ class SettingsPage extends GetView<SettingsController> {
             value: AppSettingsController.instance.danmuStrokeWidth.value,
             onChanged: (e) {
               AppSettingsController.instance.setDanmuStrokeWidth(e);
+            },
+          ),
+        ),
+        AppStyle.vGap24,
+        Obx(
+          () => SettingsItemWidget(
+            foucsNode: controller.liveEventFlowFoucsNode,
+            autofocus: controller.liveEventFlowFoucsNode.isFoucsed.value,
+            title: "重点动态",
+            items: const {
+              0: "关",
+              1: "开",
+            },
+            value: AppSettingsController.instance.liveEventFlowEnable.value
+                ? 1
+                : 0,
+            onChanged: (e) {
+              AppSettingsController.instance.setLiveEventFlowEnable(e == 1);
+            },
+          ),
+        ),
+        AppStyle.vGap24,
+        Obx(
+          () => SettingsItemWidget(
+            foucsNode: controller.liveEventFlowOverlayFoucsNode,
+            autofocus: controller.liveEventFlowOverlayFoucsNode.isFoucsed.value,
+            title: "全屏显示重点动态",
+            items: const {
+              0: "关",
+              1: "开",
+            },
+            value:
+                AppSettingsController.instance.liveEventFlowOverlayEnable.value
+                    ? 1
+                    : 0,
+            onChanged: (e) {
+              AppSettingsController.instance
+                  .setLiveEventFlowOverlayEnable(e == 1);
+            },
+          ),
+        ),
+        AppStyle.vGap24,
+        Obx(
+          () => SettingsItemWidget(
+            foucsNode: controller.liveEventFlowWindowFoucsNode,
+            autofocus: controller.liveEventFlowWindowFoucsNode.isFoucsed.value,
+            title: "动态统计跨度",
+            items: const {
+              5: "5秒",
+              10: "10秒",
+              15: "15秒",
+              30: "30秒",
+              60: "60秒",
+              120: "120秒",
+            },
+            value: AppSettingsController
+                .instance.effectiveLiveEventFlowWindowSeconds,
+            onChanged: (e) {
+              AppSettingsController.instance.setLiveEventFlowWindowSeconds(e);
+            },
+          ),
+        ),
+        AppStyle.vGap24,
+        Obx(
+          () => SettingsItemWidget(
+            foucsNode: controller.liveEventFlowDisplayFoucsNode,
+            autofocus: controller.liveEventFlowDisplayFoucsNode.isFoucsed.value,
+            title: "动态展示时间",
+            items: const {
+              3: "3秒",
+              5: "5秒",
+              10: "10秒",
+              15: "15秒",
+              30: "30秒",
+              60: "60秒",
+            },
+            value: AppSettingsController
+                .instance.effectiveLiveEventFlowDisplaySeconds,
+            onChanged: (e) {
+              AppSettingsController.instance.setLiveEventFlowDisplaySeconds(e);
+            },
+          ),
+        ),
+        AppStyle.vGap24,
+        Obx(
+          () => SettingsItemWidget(
+            foucsNode: controller.liveEventFlowMinCountFoucsNode,
+            autofocus:
+                controller.liveEventFlowMinCountFoucsNode.isFoucsed.value,
+            title: "动态起显次数",
+            items: const {
+              2: "2次",
+              3: "3次",
+              5: "5次",
+              8: "8次",
+              10: "10次",
+              20: "20次",
+            },
+            value:
+                AppSettingsController.instance.effectiveLiveEventFlowMinCount,
+            onChanged: (e) {
+              AppSettingsController.instance.setLiveEventFlowMinCount(e);
             },
           ),
         ),

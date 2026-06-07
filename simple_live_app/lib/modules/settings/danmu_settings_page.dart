@@ -192,6 +192,51 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
               ),
               AppStyle.divider,
               Obx(
+                () => SettingsSwitch(
+                  title: "全屏显示重点动态",
+                  subtitle: "在播放器全屏时显示当前重复弹幕摘要",
+                  value: controller.liveEventFlowOverlayEnable.value,
+                  onChanged: controller.setLiveEventFlowOverlayEnable,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "动态统计跨度",
+                  subtitle: "多少秒内的重复弹幕合并计数",
+                  value: controller.liveEventFlowWindowSeconds.value,
+                  min: AppSettingsController.kLiveEventFlowMinWindowSeconds,
+                  max: AppSettingsController.kLiveEventFlowMaxWindowSeconds,
+                  step: 5,
+                  onChanged: controller.setLiveEventFlowWindowSeconds,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "动态展示时间",
+                  subtitle: "一条动态多久没有更新后自动消失",
+                  value: controller.liveEventFlowDisplaySeconds.value,
+                  min: AppSettingsController.kLiveEventFlowMinDisplaySeconds,
+                  max: AppSettingsController.kLiveEventFlowMaxDisplaySeconds,
+                  step: 1,
+                  onChanged: controller.setLiveEventFlowDisplaySeconds,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "动态起显次数",
+                  subtitle: "同一句重复达到多少次后进入重点动态",
+                  value: controller.liveEventFlowMinCount.value,
+                  min: AppSettingsController.kLiveEventFlowMinCount,
+                  max: AppSettingsController.kLiveEventFlowMaxCount,
+                  step: 1,
+                  onChanged: controller.setLiveEventFlowMinCount,
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
                 () => SettingsNumber(
                   title: "动态保留数量",
                   subtitle: "控制动态页最多保留多少条摘要",

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 
 import 'package:get/get.dart';
 import 'package:simple_live_tv_app/app/constant.dart';
@@ -24,6 +23,7 @@ class FollowUserService extends BasePageController<FollowUser> {
   bool needUpdate = true;
   int _updateGeneration = 0;
   DateTime? _lastUpdateStatusStartedAt;
+  bool _forceNextStatusRefresh = false;
 
   FollowUserService() {
     pageSize = 60;
@@ -52,7 +52,7 @@ class FollowUserService extends BasePageController<FollowUser> {
         ),
         (timer) {
           Log.logPrint("Update Follow Timer");
-          refreshData();
+          refreshData(forceStatus: false);
         },
       );
     } else {
@@ -61,14 +61,25 @@ class FollowUserService extends BasePageController<FollowUser> {
   }
 
   var updating = false.obs;
+
+  @override
+  Future refreshData({bool forceStatus = true}) async {
+    _forceNextStatusRefresh = forceStatus;
+    await super.refreshData();
+  }
+
   @override
   Future<List<FollowUser>> getData(int page, int pageSize) async {
     if (page == 1) {
       allList.assignAll(_sortFollowUsers(DBService.instance.getFollowList()));
       updateLivingList();
       if (needUpdate) {
-        unawaited(startUpdateStatus(allList.toList()));
+        unawaited(startUpdateStatus(
+          allList.toList(),
+          force: _forceNextStatusRefresh,
+        ));
       }
+      _forceNextStatusRefresh = false;
       needUpdate = true;
       if (allList.isEmpty) {
         updating.value = false;
@@ -104,23 +115,24 @@ class FollowUserService extends BasePageController<FollowUser> {
   }
 
   /// 获取最优并发数
-  /// 用户设置为 0 时根据 CPU 核心数自动计算
+  /// 后台按关注规模自动控制，不再读取用户配置，避免超大关注列表刷崩。
   int _getConcurrency(int total) {
-    var userSetting =
-        AppSettingsController.instance.updateFollowThreadCount.value;
-
-    int concurrency;
-    if (userSetting <= 0) {
-      var cpuCount = Platform.numberOfProcessors;
-      concurrency = (cpuCount * 2.5).round().clamp(4, 20);
-    } else {
-      concurrency = userSetting.clamp(1, 20);
+    if (total <= 0) {
+      return 1;
     }
-
-    if (total > 0 && concurrency > total) {
-      concurrency = total;
+    if (total <= 300) {
+      return total < 48 ? total : 48;
     }
-    return concurrency < 1 ? 1 : concurrency;
+    if (total <= 1000) {
+      return 32;
+    }
+    if (total <= 3000) {
+      return 20;
+    }
+    if (total <= 5000) {
+      return 12;
+    }
+    return 8;
   }
 
   /// 按平台交错排列，避免单一平台阻塞
@@ -170,7 +182,9 @@ class FollowUserService extends BasePageController<FollowUser> {
 
     var concurrency = _getConcurrency(followList.length);
 
-    Log.logPrint("开始更新关注状态，并发数: $concurrency，总数: ${followList.length}");
+    Log.logPrint(
+      "开始更新关注状态，并发数: $concurrency，总数: ${followList.length}",
+    );
 
     var taskQueue = Queue<FollowUser>.from(_interleaveByPlatform(followList));
 

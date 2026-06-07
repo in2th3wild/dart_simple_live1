@@ -24,6 +24,7 @@ Widget buildControls(VideoState videoState, LiveRoomController controller) {
     children: [
       Container(),
       buildDanmuView(videoState, controller),
+      _buildLiveEventFlowOverlay(controller),
       // 点击播放器打开设置
       Positioned.fill(
         child: GestureDetector(onTap: () => showPlayerSettings(controller)),
@@ -210,6 +211,62 @@ Widget buildControls(VideoState videoState, LiveRoomController controller) {
         ),
       ),
     ],
+  );
+}
+
+Widget _buildLiveEventFlowOverlay(LiveRoomController controller) {
+  return Positioned(
+    right: 32.w,
+    top: 108.w,
+    child: Obx(() {
+      final settings = AppSettingsController.instance;
+      if (!settings.liveEventFlowEnable.value ||
+          !settings.liveEventFlowOverlayEnable.value ||
+          controller.liveEventFlows.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return IgnorePointer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final item in controller.liveEventFlows.take(3))
+              TweenAnimationBuilder<double>(
+                key: ValueKey("${item.text}-${item.count}"),
+                tween: Tween(begin: 1.08, end: 1),
+                duration: const Duration(milliseconds: 180),
+                builder: (context, scale, child) {
+                  return Transform.scale(
+                    scale: scale,
+                    alignment: Alignment.centerRight,
+                    child: child,
+                  );
+                },
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: 420.w),
+                  margin: EdgeInsets.only(bottom: 10.w),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 18.w,
+                    vertical: 10.w,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.58),
+                    borderRadius: BorderRadius.circular(6.w),
+                  ),
+                  child: Text(
+                    item.displayText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppStyle.textStyleWhite.copyWith(
+                      fontSize: 24.w,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }),
   );
 }
 
