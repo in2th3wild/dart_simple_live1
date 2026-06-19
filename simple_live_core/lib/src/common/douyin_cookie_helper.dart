@@ -1,4 +1,4 @@
-class DouyinCookieHelper {
+﻿class DouyinCookieHelper {
   static bool hasCustomCookie(String cookie) {
     return cookie.trim().isNotEmpty;
   }
@@ -11,6 +11,32 @@ class DouyinCookieHelper {
   static bool hasFullCookie(String cookie) {
     final normalized = cookie.trim();
     return normalized.isNotEmpty && !isOnlyTtwid(normalized);
+  }
+
+  static String cookieCompletenessHint(String cookie) {
+    final normalized = cookie.trim();
+    if (normalized.isEmpty) {
+      return "未配置 Cookie";
+    }
+    if (isOnlyTtwid(normalized)) {
+      return "仅检测到 ttwid，播放通常可用，但抖音关注状态可能需要完整 Cookie";
+    }
+    final lower = normalized.toLowerCase();
+    final hasDouyinIdentity =
+        lower.contains('sessionid=') ||
+        lower.contains('sid_guard=') ||
+        lower.contains('passport_csrf_token=') ||
+        lower.contains('passport_csrf_token_default=') ||
+        lower.contains('mstoken=') ||
+        lower.contains('odin_tt=') ||
+        lower.contains('passport_auth_status=') ||
+        lower.contains('__ac_nonce=') ||
+        lower.contains('__ac_signature=') ||
+        lower.contains('ttwid=');
+    if (hasDouyinIdentity) {
+      return "已检测到非纯 ttwid Cookie，可用于登录态刷新；若仍失败，可能是 Cookie 过期或抖音风控";
+    }
+    return "已保存自定义 Cookie，但未识别到典型登录字段；若刷新失败，建议重新从浏览器复制完整 Request Headers";
   }
 
   static String normalizeInput(String input) {

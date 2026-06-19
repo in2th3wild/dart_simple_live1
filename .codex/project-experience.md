@@ -172,3 +172,27 @@ This file records reusable lessons for this project. Keep entries short, actiona
 - Source: TV Android runtime error `Couldn't resolve native function 'JS_NewRuntime'` / `libdart_quickjs.so not found`.
 - Lesson: Windows quickjs packaging checks do not cover Android. After every Android or TVAndroid release, inspect each APK and verify it contains `lib/<abi>/libdart_quickjs.so` for `armeabi-v7a`, `arm64-v8a`, and `x86_64`. The dart_quickjs hook can compile the `.so` under `.dart_tool\hooks_runner\shared\dart_quickjs\build\<id>\libdart_quickjs.so` while Gradle still omits it from the final APK unless it is synced into `android\app\build\generated\dart_quickjs\jniLibs`.
 - Fix: `simple_live_app` and `simple_live_tv_app` Gradle configs now include generated quickjs `jniLibs`, and `tools\build-release.ps1` syncs/verifies quickjs APK entries before copying release APKs.
+
+### 2026-06-19 | failure | Build script: windows-build
+
+- Source: tools\build-release.ps1
+- Command: `cd C:\softwares\dart_simple_live\simple_live_app; & C:\softwares\flutter\bin\flutter.bat build windows --release`
+- Log: `C:\softwares\dart_simple_live\release\v1.12.6\logs\windows-build.log`
+- Symptom: ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(55,22): error G297C951C: Can't find ')' to match '('. [C:\ softwares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(55,15): error G297C951C: Can't find ')' to match '('. [C:\ softwares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(59,18): error G67247B7E: Expected ':' before this. [C:\sof twares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(59,18): error G25387D61: Expected an identifier, but got ' ;'. [C:\softwares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/...
+- Next action: If INSTALL.vcxproj fails, inspect CMAKE_INSTALL_PREFIX and redirect it to a project-local package directory.
+
+### 2026-06-19 | failure | Build script: build-release.ps1
+
+- Source: tools\build-release.ps1
+- Command: `Target=Windows; ReleaseDir=C:\softwares\dart_simple_live\release\v1.12.6`
+- Log: `C:\softwares\dart_simple_live\release\v1.12.6\logs`
+- Symptom: ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(55,22): error G297C951C: Can't find ')' to match '('. [C:\ softwares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(55,15): error G297C951C: Can't find ')' to match '('. [C:\ softwares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(59,18): error G67247B7E: Expected ':' before this. [C:\sof twares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/douyin_cookie_helper.dart(59,18): error G25387D61: Expected an identifier, but got ' ;'. [C:\softwares\dart_simple_live\simple_live_app\build\windows\x64\flutter\flutter_assemble.vcxproj] ../simple_live_core/lib/src/common/...
+- Next action: Read the printed error and logs, keep build directories for inspection, then rerun the failed target.
+
+### 2026-06-19 | failure | Build script: build-release.ps1
+
+- Source: tools\build-release.ps1
+- Command: `Target=Windows; ReleaseDir=C:\softwares\dart_simple_live\release\v1.12.6`
+- Log: `C:\softwares\dart_simple_live\release\v1.12.6\logs`
+- Symptom: ple_live\simple_live_app\build\windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_plugin.vcx proj] C:\softwares\dart_simple_live\simple_live_app\windows\flutter\ephemeral\.plugin_symlinks\flutter_inappwebview_windows\w indows\types\web_resource_response.cpp(54,28): warning C4244: “参数”: 从“__int64”转换到“int”，可能丢失数据 [C:\softwares\dart_simple _live\simple_live_app\build\windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_plugin.vcxpro j] C:\softwares\dart_simple_live\simple_live_app\build\windows\x64\packages\Microsoft.Web.WebView2\build\native\include\We bView2EnvironmentOptions.h(194,3): warning C4458: “value”的声明隐藏了类成员 [C:\softwares\dart_simple_live\simple_live_app\build \windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_plugin.vcxproj] C:\softwares\dart_simple_live\simple_live_app\build\windows\x64\packages\Mic...
+- Next action: Read the printed error and logs, keep build directories for inspection, then rerun the failed target.

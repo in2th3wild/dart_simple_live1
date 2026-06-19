@@ -26,6 +26,7 @@ import 'package:simple_live_core/simple_live_core.dart';
 class FollowService extends GetxService {
   static const Duration updateStatusCooldown = Duration(seconds: 30);
   static const int kDouyinGuestRefreshLimit = 100;
+  static const int kFollowProgressUiBurstThreshold = 500;
   static const String _refreshTaskStateStorageKey =
       LocalStorageService.kFollowRefreshTaskState;
   static const String _refreshTaskTargetsStorageKey =
@@ -739,6 +740,7 @@ class FollowService extends GetxService {
               .where(targetByKey.containsKey)
               .toList(growable: true)
           : orderedAllowedKeys.toList(growable: true);
+      final isHugeTask = targets.length >= kFollowProgressUiBurstThreshold;
       final taskQueue = Queue<FollowUser>.from(
         pendingKeys
             .map((key) => targetByKey[key])
@@ -844,7 +846,7 @@ class FollowService extends GetxService {
             case _FollowRefreshItemOutcome.skipped:
               break;
           }
-          if (scope.includeAllNormals) {
+          if (scope.includeAllNormals && !isHugeTask) {
             unawaited(
               _persistRefreshTask(
                 scope: scope,
@@ -857,7 +859,9 @@ class FollowService extends GetxService {
               ),
             );
           }
-          updateProgress(active: true, done: false);
+          if (!isHugeTask || completed % 20 == 0 || pendingKeys.isEmpty) {
+            updateProgress(active: true, done: false);
+          }
         }
       }
 
