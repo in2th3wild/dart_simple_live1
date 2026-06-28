@@ -673,8 +673,7 @@ class DouyinSite implements LiveSite {
     final stopwatch = Stopwatch()..start();
     var roomData = await _getRoomDataByHtml(webRid);
     var roomId = roomData["roomStore"]["roomInfo"]["room"]["id_str"].toString();
-    var userUniqueId = roomData["userStore"]["odin"]["user_unique_id"]
-        .toString();
+    var userUniqueId = _resolveUserUniqueIdFromRoomData(roomData);
 
     var room = roomData["roomStore"]["roomInfo"]["room"];
     var owner = room["owner"];
@@ -719,13 +718,50 @@ class DouyinSite implements LiveSite {
     return detail;
   }
 
+  static String resolveUserUniqueIdFromRoomData(dynamic roomData) {
+    final resolved = _resolveNestedString(roomData, const [
+      "userStore",
+      "odin",
+      "user_unique_id",
+    ]);
+    if (resolved != null && resolved.isNotEmpty) {
+      return resolved;
+    }
+
+    final fallback = _resolveNestedString(roomData, const [
+      "userStore",
+      "user",
+      "user_unique_id",
+    ]);
+    if (fallback != null && fallback.isNotEmpty) {
+      return fallback;
+    }
+
+    return generateRandomNumber(12).toString();
+  }
+
+  String? _resolveNestedString(dynamic source, List<String> path) {
+    dynamic current = source;
+    for (final key in path) {
+      if (current is! Map) {
+        return null;
+      }
+      current = current[key];
+      if (current == null) {
+        return null;
+      }
+    }
+    final value = current.toString().trim();
+    return value.isEmpty ? null : value;
+  }
+
   /// 读取用户的唯一ID
   /// - [webRid] 直播间RID
   // ignore: unused_element
   Future<String> _getUserUniqueId(String webRid) async {
     try {
       var webInfo = await _getRoomDataByHtml(webRid);
-      return webInfo["userStore"]["odin"]["user_unique_id"].toString();
+      return _resolveUserUniqueIdFromRoomData(webInfo);
     } catch (e) {
       return generateRandomNumber(12).toString();
     }

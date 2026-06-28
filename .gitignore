@@ -10,6 +10,7 @@ issue_logs/
 experience/
 **/android/app/build/
 graphify-out/
+.codex/
 
 # scripts 
 build_android_apk.bat

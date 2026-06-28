@@ -20,7 +20,6 @@ import 'package:simple_live_tv_app/services/local_storage_service.dart';
 class FollowUserService extends BasePageController<FollowUser> {
   static const Duration updateStatusCooldown = Duration(seconds: 10);
   static const int paginationThreshold = 400;
-  static const int kDouyinGuestRefreshLimit = 100;
   static const String _refreshTaskStateStorageKey =
       LocalStorageService.kFollowRefreshTaskState;
   static const String _refreshTaskTargetsStorageKey =
@@ -240,7 +239,7 @@ class FollowUserService extends BasePageController<FollowUser> {
         allowed.add(item);
         continue;
       }
-      if (allowedDouyinCount < kDouyinGuestRefreshLimit) {
+      if (allowedDouyinCount < orderedTargets.length) {
         allowedDouyinCount++;
         allowed.add(item);
       } else {
@@ -250,14 +249,15 @@ class FollowUserService extends BasePageController<FollowUser> {
 
     final toastMessage = deferred.isEmpty
         ? ""
-        : "抖音本次仅刷新前 $kDouyinGuestRefreshLimit 个，剩余需要完整 Cookie";
+        : hasFullDouyinCookie
+            ? ""
+            : "抖音未登录时将按风控策略降速刷新；若出现 444 会自动停止硬刷并保留剩余任务";
     return _RefreshTargetPolicyResult(
       allowedTargets: allowed,
       deferredTargets: deferred,
       toastMessage: toastMessage,
     );
   }
-
   List<FollowUser> _distinctFollowUsers(Iterable<FollowUser> items) {
     final result = <FollowUser>[];
     final seenIds = <String>{};
@@ -651,7 +651,6 @@ class FollowUserService extends BasePageController<FollowUser> {
             limitedCount++;
           }
           final targetKey = _refreshTargetKey(item);
-          pendingKeys.remove(targetKey);
           switch (result.outcome) {
             case _FollowRefreshItemOutcome.success:
               successCount++;
@@ -704,11 +703,9 @@ class FollowUserService extends BasePageController<FollowUser> {
         );
       }
       updateProgress(active: false, done: true);
-      if (resolvedScope.includeAllNormals) {
+      if (resolvedScope.includeAllNormals && pendingKeys.isEmpty) {
         await _clearPersistedRefreshTask();
       }
-      sortList();
-      Log.logPrint("关注状态更新完成");
     } finally {
       if (generation == _updateGeneration) {
         updating.value = false;

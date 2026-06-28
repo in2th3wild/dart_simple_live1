@@ -25,7 +25,6 @@ import 'package:simple_live_core/simple_live_core.dart';
 
 class FollowService extends GetxService {
   static const Duration updateStatusCooldown = Duration(seconds: 30);
-  static const int kDouyinGuestRefreshLimit = 100;
   static const int kFollowProgressUiBurstThreshold = 500;
   static const String _refreshTaskStateStorageKey =
       LocalStorageService.kFollowRefreshTaskState;
@@ -615,7 +614,7 @@ class FollowService extends GetxService {
         allowed.add(item);
         continue;
       }
-      if (allowedDouyinCount < kDouyinGuestRefreshLimit) {
+      if (allowedDouyinCount < orderedTargets.length) {
         allowedDouyinCount++;
         allowed.add(item);
       } else {
@@ -625,14 +624,15 @@ class FollowService extends GetxService {
 
     final toastMessage = deferred.isEmpty
         ? ""
-        : "抖音本次仅刷新前 $kDouyinGuestRefreshLimit 个，剩余需要完整 Cookie";
+        : hasFullDouyinCookie
+            ? ""
+            : "抖音未登录时将按风控策略降速刷新；若出现 444 会自动停止硬刷并保留剩余任务";
     return _RefreshTargetPolicyResult(
       allowedTargets: allowed,
       deferredTargets: deferred,
       toastMessage: toastMessage,
     );
   }
-
   Future<void> refreshSelectedStatus(
     Iterable<FollowUser> normalTargets, {
     bool includeAllNormals = false,
@@ -832,7 +832,7 @@ class FollowService extends GetxService {
             limitedCount++;
           }
           final targetKey = _refreshTargetKey(item);
-          pendingKeys.remove(targetKey);
+
           switch (result.outcome) {
             case _FollowRefreshItemOutcome.success:
               successCount++;
@@ -1209,3 +1209,4 @@ class _PersistedFollowRefreshTaskState {
     );
   }
 }
+
