@@ -693,6 +693,49 @@ function Get-QuickJsAndroidNativeAssets {
   return $selected
 }
 
+function Get-AndroidQuickJsGeneratedDir {
+  param([string]$ProjectDir)
+  return (Join-Path $ProjectDir "android\app\build\generated\dart_quickjs\jniLibs")
+}
+
+function Test-AndroidNativeAssetsQuickJs {
+  param([string]$ProjectDir)
+  $jniRoot = Join-Path $ProjectDir "build\native_assets\android\jniLibs\lib"
+  foreach ($abi in @("armeabi-v7a", "arm64-v8a", "x86_64")) {
+    $so = Join-Path $jniRoot "$abi\libdart_quickjs.so"
+    if (-not (Test-Path -LiteralPath $so)) {
+      return $false
+    }
+    if ((Get-Item -LiteralPath $so).Length -le 0) {
+      return $false
+    }
+  }
+  return $true
+}
+
+function Clear-GeneratedQuickJsAndroidJniLibs {
+  param([string]$ProjectDir)
+  $jniRoot = Get-AndroidQuickJsGeneratedDir $ProjectDir
+  if ($DryRun) {
+    Write-Note "[dry-run] clear generated dart_quickjs Android JNI libraries"
+    return
+  }
+  if (Test-Path -LiteralPath $jniRoot) {
+    Remove-Item -LiteralPath $jniRoot -Recurse -Force
+    Write-Note "Cleared generated dart_quickjs Android JNI libraries from $jniRoot"
+  }
+}
+
+function Sync-QuickJsAndroidJniLibsIfNeeded {
+  param([string]$ProjectDir, [switch]$Required)
+  Clear-GeneratedQuickJsAndroidJniLibs $ProjectDir
+  if (Test-AndroidNativeAssetsQuickJs $ProjectDir) {
+    Write-Note "Using Flutter native assets for dart_quickjs Android libraries."
+    return $true
+  }
+  return (Sync-QuickJsAndroidJniLibs $ProjectDir -Required:$Required)
+}
+
 function Sync-QuickJsAndroidJniLibs {
   param([string]$ProjectDir, [switch]$Required)
   if ($DryRun) {
@@ -940,7 +983,7 @@ function Build-SingleAbiApks {
     $src = Join-Path $apkDir "app-release.apk"
     if (-not (Test-ArchiveEntries $src @("lib/$($abi.Abi)/libdart_quickjs.so"))) {
       Write-Note "$Kind $($abi.Abi) APK is missing dart_quickjs; syncing native assets and rebuilding."
-      $null = Sync-QuickJsAndroidJniLibs $ProjectDir -Required
+      $null = Sync-QuickJsAndroidJniLibsIfNeeded $ProjectDir -Required
       $null = Invoke-LoggedCommand "$Kind-single-$($abi.Abi)-quickjs-rebuild" $ProjectDir $Flutter @("build", "apk", "--release", "--target-platform", $abi.Platform) "Single ABI quickjs rebuild failed."
       Assert-ApkEntries $src @("lib/$($abi.Abi)/libdart_quickjs.so")
     }
@@ -956,7 +999,7 @@ function Build-AndroidLike {
   Ensure-Tool (Join-Path $AndroidSdk "platform-tools") "Android SDK platform-tools"
   Ensure-AndroidLocalProperties $ProjectDir
   $null = Invoke-LoggedCommand "$Kind-pub-get" $ProjectDir $Flutter @("pub", "get")
-  $null = Sync-QuickJsAndroidJniLibs $ProjectDir
+  Clear-GeneratedQuickJsAndroidJniLibs $ProjectDir
   $splitOk = Invoke-LoggedCommand "$Kind-split-apk" $ProjectDir $Flutter @("build", "apk", "--release", "--split-per-abi") "Split ABI build failed. The script will retry one ABI at a time; check dart_quickjs/native assets if armeabi-v7a is missing." -ContinueOnFailure
   if ($DryRun) {
     Write-Note "[dry-run] would copy APK outputs with prefix $Prefix"
@@ -965,7 +1008,7 @@ function Build-AndroidLike {
   $apkDir = Join-Path $ProjectDir "build\app\outputs\flutter-apk"
   if ($splitOk -and -not (Test-SplitApksQuickJs $apkDir)) {
     Write-Note "$Kind split APKs are missing dart_quickjs; syncing native assets and rebuilding split APKs."
-    $null = Sync-QuickJsAndroidJniLibs $ProjectDir -Required
+    $null = Sync-QuickJsAndroidJniLibsIfNeeded $ProjectDir -Required
     $splitOk = Invoke-LoggedCommand "$Kind-split-apk-quickjs-rebuild" $ProjectDir $Flutter @("build", "apk", "--release", "--split-per-abi") "Split ABI quickjs rebuild failed; falling back to single ABI builds." -ContinueOnFailure
   }
   if ($splitOk) {
