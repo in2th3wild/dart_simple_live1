@@ -372,11 +372,16 @@ class FollowUserPage extends GetView<FollowUserController> {
       final crossAxisCount = mobile
           ? (width >= 720 ? 3 : 2)
           : (width >= 1680 ? 4 : (width >= 1220 ? 3 : 2));
+      final availableWidth = width - 16 - (crossAxisCount - 1) * 12;
+      final cardWidth = availableWidth / crossAxisCount;
+      final coverHeight = cardWidth * 9 / 16;
+      final cardExtent = showLiveCover
+          ? coverHeight + (mobile ? 108 : 116)
+          : (mobile ? 178.0 : 190.0);
       return _FollowLayoutSpec(
         itemStyle: FollowUserItemStyle.card,
         crossAxisCount: crossAxisCount,
-        mainAxisExtent:
-            showLiveCover ? (mobile ? 238 : 250) : (mobile ? 178 : 190),
+        mainAxisExtent: cardExtent,
         childAspectRatio: 0.9,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
@@ -897,3 +902,4 @@ class _FollowLayoutSpec {
     required this.mainAxisSpacing,
   });
 }
+

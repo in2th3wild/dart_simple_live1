@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:floating/floating.dart';
@@ -1496,7 +1496,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               },
             ),
             Visibility(
-              visible: Platform.isAndroid,
+              visible: Platform.isAndroid || Platform.isIOS,
               child: ListTile(
                 leading: const Icon(Icons.picture_in_picture),
                 title: const Text("小窗播放"),
@@ -2036,3 +2036,4 @@ class _InteractiveChatText extends StatelessWidget {
     );
   }
 }
+

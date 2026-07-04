@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:auto_orientation_v2/auto_orientation_v2.dart';
@@ -758,8 +758,12 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     }
   }
 
-  /// 恢复系统方向，避免平板横屏返回后仍被锁定为手机竖屏。
+  /// 退出移动端全屏后主动回到竖屏，避免 iOS 保持横屏方向不切回。
   Future resetPreferredOrientation() async {
+    if (Platform.isIOS) {
+      await setPortraitOrientation();
+      return;
+    }
     if (await beforeIOS16()) {
       AutoOrientation.fullAutoMode();
     } else {
@@ -1544,3 +1548,5 @@ class PlayerController extends BaseController
     super.onClose();
   }
 }
+
+

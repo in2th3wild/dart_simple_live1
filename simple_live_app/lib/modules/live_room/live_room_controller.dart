@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
@@ -78,6 +78,9 @@ class LiveRoomController extends PlayerController
   RxList<LiveRepeatedDanmuSummary> liveEventFlows =
       RxList<LiveRepeatedDanmuSummary>();
   bool _autoSwitchingRoom = false;
+  bool _roomSwitching = false;
+  Site? _pendingRoomSite;
+  String? _pendingRoomId;
   var contributionRankLoading = false.obs;
   var contributionRankFetched = false.obs;
   Rx<String?> contributionRankError = Rx<String?>(null);
@@ -1837,36 +1840,48 @@ class LiveRoomController extends PlayerController
     BuildContext targetContext, {
     bool keepAlive = false,
   }) {
+    hidevolumeTimer?.cancel();
     SmartDialog.showAttach(
       targetContext: targetContext,
       alignment: Alignment.topCenter,
-      displayTime: keepAlive ? null : const Duration(seconds: 3),
+      displayTime: keepAlive ? null : const Duration(seconds: 4),
       maskColor: const Color(0x00000000),
       tag: volumeSliderDialogTag,
       keepSingle: true,
       builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: AppStyle.radius12,
-            color: Theme.of(context).cardColor,
-          ),
-          padding: AppStyle.edgeInsetsA4,
-          child: Obx(
-            () => SizedBox(
-              width: 200,
-              child: Slider(
-                min: 0,
-                max: 100,
-                value: AppSettingsController.instance.playerVolume.value,
-                onChanged: (newValue) {
-                  setSessionPlayerVolume(newValue, persist: true);
-                },
+        return MouseRegion(
+          onEnter: (_) => hidevolumeTimer?.cancel(),
+          onExit: (_) => hideVolumeSlider(),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: AppStyle.radius12,
+              color: Theme.of(context).cardColor,
+            ),
+            padding: AppStyle.edgeInsetsA4,
+            child: Obx(
+              () => SizedBox(
+                width: 200,
+                child: Slider(
+                  min: 0,
+                  max: 100,
+                  value: AppSettingsController.instance.playerVolume.value,
+                  onChanged: (newValue) {
+                    setSessionPlayerVolume(newValue, persist: true);
+                  },
+                ),
               ),
             ),
           ),
         );
       },
     );
+  }
+
+  void hideVolumeSlider() {
+    hidevolumeTimer?.cancel();
+    hidevolumeTimer = Timer(const Duration(milliseconds: 220), () {
+      SmartDialog.dismiss(tag: volumeSliderDialogTag);
+    });
   }
 
   void showQualitySheet() {
@@ -2651,35 +2666,57 @@ class LiveRoomController extends PlayerController
       return;
     }
 
-    rxSite.value = site;
-    rxRoomId.value = roomId;
-    CurrentRoomService.instance.setRoom(site, roomId);
-    _roomDisposed = false;
-    _loadGeneration += 1;
-    tempMutedUsers.clear();
-    danmakuViewportHeight.value = 0;
+    if (_roomSwitching) {
+      _pendingRoomSite = site;
+      _pendingRoomId = roomId;
+      return;
+    }
 
-    // 清理当前房间的会话状态
-    await liveDanmaku.stop();
-    messages.clear();
-    _clearDanmuDedupeState();
-    _clearSuperChatState();
-    _clearContributionRankState();
-    clearLiveEventFlow();
-    _cancelPendingDanmakuTimers();
-    clearDanmakuReplayHistory();
-    danmakuController?.clear();
-    rebuildDanmakuView();
+    _roomSwitching = true;
+    while (true) {
+      rxSite.value = site;
+      rxRoomId.value = roomId;
+      CurrentRoomService.instance.setRoom(site, roomId);
+      _roomDisposed = false;
+      _loadGeneration += 1;
+      tempMutedUsers.clear();
+      danmakuViewportHeight.value = 0;
 
-    // 重新创建弹幕连接对象
-    liveDanmaku = site.liveSite.getDanmaku();
+      try {
+        // 清理当前房间的会话状态
+        await liveDanmaku.stop();
+        messages.clear();
+        _clearDanmuDedupeState();
+        _clearSuperChatState();
+        _clearContributionRankState();
+        clearLiveEventFlow();
+        _cancelPendingDanmakuTimers();
+        clearDanmakuReplayHistory();
+        danmakuController?.clear();
+        rebuildDanmakuView();
 
-    // 停止当前播放
-    await stopBackgroundPlaybackService();
-    await player.stop();
+        // 重新创建弹幕连接对象
+        liveDanmaku = site.liveSite.getDanmaku();
 
-    // 重新拉取房间信息
-    loadData();
+        // 停止当前播放
+        await stopBackgroundPlaybackService();
+        await player.stop();
+
+        // 重新拉取房间信息
+        loadData();
+      } finally {
+        final pendingSite = _pendingRoomSite;
+        final pendingRoomId = _pendingRoomId;
+        _pendingRoomSite = null;
+        _pendingRoomId = null;
+        if (pendingSite == null || pendingRoomId == null) {
+          break;
+        }
+        site = pendingSite;
+        roomId = pendingRoomId;
+      }
+    }
+    _roomSwitching = false;
   }
 
   void copyErrorDetail() {
@@ -2834,3 +2871,10 @@ ${errorStackTrace ?? ""}''');
     super.onClose();
   }
 }
+
+
+
+
+
+
+

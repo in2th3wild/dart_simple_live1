@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:canvas_danmaku/canvas_danmaku.dart';
@@ -527,7 +527,7 @@ Widget _buildFullTopBar(
                 size: 24,
               ),
             ),
-            if (Platform.isAndroid)
+            if (Platform.isAndroid || Platform.isIOS)
               IconButton(
                 onPressed: controller.enablePIP,
                 icon: const Icon(
@@ -623,32 +623,24 @@ Widget _buildFullBottomBar(
             ),
             const Expanded(child: SizedBox()),
             if (!Platform.isAndroid && !Platform.isIOS)
-              MouseRegion(
-                onEnter: (_) {
+              IconButton(
+                key: volumeButtonKey,
+                onPressed: () {
+                  final context = volumeButtonKey.currentContext;
+                  if (context == null) {
+                    return;
+                  }
                   controller.showVolumeSlider(
-                    volumeButtonKey.currentContext!,
+                    context,
                     keepAlive: true,
                   );
                 },
-                onExit: (_) {
-                  SmartDialog.dismiss(
-                    tag: LiveRoomController.volumeSliderDialogTag,
-                  );
-                },
-                child: IconButton(
-                  key: volumeButtonKey,
-                  onPressed: () {
-                    controller.showVolumeSlider(
-                      volumeButtonKey.currentContext!,
-                    );
-                  },
-                  icon: Icon(
-                    controller.mutedState.value
-                        ? Icons.volume_off
-                        : Icons.volume_down,
-                    size: 24,
-                    color: Colors.white,
-                  ),
+                icon: Icon(
+                  controller.mutedState.value
+                      ? Icons.volume_off
+                      : Icons.volume_down,
+                  size: 24,
+                  color: Colors.white,
                 ),
               ),
             IconButton(
@@ -759,32 +751,24 @@ Widget _buildNormalBottomBar(
             ),
             const Expanded(child: SizedBox()),
             if (!Platform.isAndroid && !Platform.isIOS)
-              MouseRegion(
-                onEnter: (_) {
+              IconButton(
+                key: volumeButtonKey,
+                onPressed: () {
+                  final context = volumeButtonKey.currentContext;
+                  if (context == null) {
+                    return;
+                  }
                   controller.showVolumeSlider(
-                    volumeButtonKey.currentContext!,
+                    context,
                     keepAlive: true,
                   );
                 },
-                onExit: (_) {
-                  SmartDialog.dismiss(
-                    tag: LiveRoomController.volumeSliderDialogTag,
-                  );
-                },
-                child: IconButton(
-                  key: volumeButtonKey,
-                  onPressed: () {
-                    controller.showVolumeSlider(
-                      volumeButtonKey.currentContext!,
-                    );
-                  },
-                  icon: Icon(
-                    controller.mutedState.value
-                        ? Icons.volume_off
-                        : Icons.volume_down,
-                    size: 24,
-                    color: Colors.white,
-                  ),
+                icon: Icon(
+                  controller.mutedState.value
+                      ? Icons.volume_off
+                      : Icons.volume_down,
+                  size: 24,
+                  color: Colors.white,
                 ),
               ),
             IconButton(
@@ -813,7 +797,16 @@ Widget _buildNormalBottomBar(
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
               ),
-            if (!Platform.isAndroid && !Platform.isIOS)
+            if (Platform.isIOS)
+              IconButton(
+                onPressed: controller.enablePIP,
+                icon: const Icon(
+                  Icons.picture_in_picture,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              )
+            else if (!Platform.isAndroid)
               IconButton(
                 onPressed: controller.enterSmallWindow,
                 icon: const Icon(
@@ -1404,3 +1397,10 @@ class _PlayerSuperChatOverlayState extends State<PlayerSuperChatOverlay> {
     );
   }
 }
+
+
+
+
+
+
+
