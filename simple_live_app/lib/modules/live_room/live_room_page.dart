@@ -1436,6 +1436,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     return KeepAliveWrapper(
       child: controller.buildFollowUserSelection(
         onClose: () {},
+        scrollController: controller.liveRoomFollowScrollController,
       ),
     );
   }

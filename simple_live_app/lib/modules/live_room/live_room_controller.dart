@@ -103,6 +103,20 @@ class LiveRoomController extends PlayerController
   /// 聊天列表滚动控制器
   final ScrollController scrollController = ScrollController();
 
+  /// 直播间右侧关注列表滚动控制器
+  final ScrollController liveRoomFollowScrollController = ScrollController();
+
+  /// 直播间弹窗关注列表滚动控制器
+  final ScrollController liveRoomFollowDialogScrollController =
+      ScrollController();
+
+  /// 直播间弹窗历史列表滚动控制器
+  final ScrollController liveRoomHistoryScrollController = ScrollController();
+
+  /// 直播间弹窗同类推荐列表滚动控制器
+  final ScrollController liveRoomRecommendationScrollController =
+      ScrollController();
+
   /// 聊天消息列表
   RxList<LiveMessage> messages = RxList<LiveMessage>();
 
@@ -1114,6 +1128,10 @@ class LiveRoomController extends PlayerController
     unawaited(cancelAutoPipOnLeave());
     CurrentRoomService.instance.clearRoom();
     scrollController.removeListener(scrollListener);
+    liveRoomFollowScrollController.dispose();
+    liveRoomFollowDialogScrollController.dispose();
+    liveRoomHistoryScrollController.dispose();
+    liveRoomRecommendationScrollController.dispose();
     autoExitTimer?.cancel();
     _superChatRefreshTimer?.cancel();
     _liveEventFlowTimer?.cancel();
@@ -2084,6 +2102,7 @@ class LiveRoomController extends PlayerController
 
   Widget buildHistorySelection({
     required VoidCallback onClose,
+    ScrollController? scrollController,
   }) {
     final histories = <History>[].obs;
     final loading = true.obs;
@@ -2112,6 +2131,7 @@ class LiveRoomController extends PlayerController
       return RefreshIndicator(
         onRefresh: loadHistory,
         child: ListView.separated(
+          controller: scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: AppStyle.edgeInsetsA12,
           itemCount: histories.length,
@@ -2191,6 +2211,7 @@ class LiveRoomController extends PlayerController
 
   Widget buildCategoryRecommendationSelection({
     required VoidCallback onClose,
+    ScrollController? scrollController,
   }) {
     final category = _buildRecommendationCategory();
     if (category == null) {
@@ -2254,6 +2275,7 @@ class LiveRoomController extends PlayerController
       return RefreshIndicator(
         onRefresh: () => loadRecommendations(refresh: true),
         child: ListView.builder(
+          controller: scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: AppStyle.edgeInsetsA12,
           itemCount: rooms.length + 2,
@@ -2381,6 +2403,7 @@ class LiveRoomController extends PlayerController
         useSystem: true,
         child: buildHistorySelection(
           onClose: Utils.hideRightDialog,
+          scrollController: liveRoomHistoryScrollController,
         ),
       );
       return;
@@ -2405,6 +2428,7 @@ class LiveRoomController extends PlayerController
         useSystem: true,
         child: buildCategoryRecommendationSelection(
           onClose: Utils.hideRightDialog,
+          scrollController: liveRoomRecommendationScrollController,
         ),
       );
       return;
@@ -2476,6 +2500,7 @@ class LiveRoomController extends PlayerController
 
   Widget buildFollowUserSelection({
     required VoidCallback onClose,
+    ScrollController? scrollController,
   }) {
     const options = ["全部", "直播中", "未开播"];
     return Obx(() {
@@ -2511,6 +2536,7 @@ class LiveRoomController extends PlayerController
                 child: RefreshIndicator(
                   onRefresh: FollowService.instance.loadData,
                   child: ListView.builder(
+                    controller: scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: AppStyle.edgeInsetsV8,
                     itemCount: followUsers.length,
@@ -2673,16 +2699,18 @@ class LiveRoomController extends PlayerController
     }
 
     _roomSwitching = true;
-    while (true) {
-      rxSite.value = site;
-      rxRoomId.value = roomId;
-      CurrentRoomService.instance.setRoom(site, roomId);
-      _roomDisposed = false;
-      _loadGeneration += 1;
-      tempMutedUsers.clear();
-      danmakuViewportHeight.value = 0;
+    try {
+      while (true) {
+        final currentSite = site;
+        final currentRoomId = roomId;
+        rxSite.value = currentSite;
+        rxRoomId.value = currentRoomId;
+        CurrentRoomService.instance.setRoom(currentSite, currentRoomId);
+        _roomDisposed = false;
+        _loadGeneration += 1;
+        tempMutedUsers.clear();
+        danmakuViewportHeight.value = 0;
 
-      try {
         // 清理当前房间的会话状态
         await liveDanmaku.stop();
         messages.clear();
@@ -2696,7 +2724,7 @@ class LiveRoomController extends PlayerController
         rebuildDanmakuView();
 
         // 重新创建弹幕连接对象
-        liveDanmaku = site.liveSite.getDanmaku();
+        liveDanmaku = currentSite.liveSite.getDanmaku();
 
         // 停止当前播放
         await stopBackgroundPlaybackService();
@@ -2704,7 +2732,7 @@ class LiveRoomController extends PlayerController
 
         // 重新拉取房间信息
         loadData();
-      } finally {
+
         final pendingSite = _pendingRoomSite;
         final pendingRoomId = _pendingRoomId;
         _pendingRoomSite = null;
@@ -2715,8 +2743,9 @@ class LiveRoomController extends PlayerController
         site = pendingSite;
         roomId = pendingRoomId;
       }
+    } finally {
+      _roomSwitching = false;
     }
-    _roomSwitching = false;
   }
 
   void copyErrorDetail() {
@@ -2871,6 +2900,9 @@ ${errorStackTrace ?? ""}''');
     super.onClose();
   }
 }
+
+
+
 
 
 

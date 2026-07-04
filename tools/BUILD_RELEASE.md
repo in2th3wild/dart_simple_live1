@@ -97,6 +97,67 @@ TV-Windows 包必须包含：
 2. 确认 `dart_quickjs.dll` 在 zip 根目录。
 3. 如缺失，从 `.dart_tool\hooks_runner\shared\dart_quickjs\**\dart_quickjs.dll` 复制最新副本。
 
+### Windows 构建长时间无输出
+
+现象：`flutter build windows --release` 输出停在 `Building Windows application...`，几分钟内没有新日志。
+
+处理：
+
+1. 不要只凭终端无输出判断卡死。Windows Release 编译可能在 C++ 阶段长时间静默。
+2. 用进程确认是否还在编译，重点看 `flutter.bat`、`dart.exe`、`cmake.exe`、`cl.exe`、`link.exe` 是否仍在运行。
+3. 如果能看到 `cmake.exe` / `cl.exe` 仍在当前项目的 `build\windows\x64` 下工作，继续等待。
+4. 只有进程消失、日志报错，或同一个编译进程长时间无 CPU/IO 活动时，才按失败处理。
+
+示例检查命令：
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object {
+    $_.CommandLine -like '*dart_simple_live*' -or
+    $_.CommandLine -like '*flutter*build windows*' -or
+    $_.CommandLine -like '*cmake*' -or
+    $_.CommandLine -like '*cl.exe*' -or
+    $_.CommandLine -like '*link.exe*'
+  } |
+  Select-Object ProcessId,Name,CommandLine |
+  Format-List
+```
+
+### 产物时间戳与 zip 路径误判
+
+现象：构建过程中 release 目录仍显示旧 zip，或手工校验 zip 时关键文件显示 `MISSING`。
+
+处理：
+
+1. 构建脚本结束前，release 目录里的 zip 可能仍是旧包；必须等脚本打印 `Build summary` 后再认定最终产物。
+2. 构建结束后核对 `LastWriteTime`，如果 zip 时间早于本次源码修改时间，视为旧包，必须重新构建。
+3. 本项目 Windows zip 当前是把文件直接放在 zip 根目录，不一定包含 `SimpleLive-Windows-v<版本号>/` 顶层目录；手工校验时不要强行加目录前缀。
+4. 校验关键文件时优先按文件名搜索，确认 `simple_live_app.exe`、`flutter_windows.dll`、`dart_quickjs.dll`、`data\flutter_assets\AssetManifest.bin`、`data\flutter_assets\NativeAssetsManifest.json` 都存在。
+
+示例 zip 校验命令：
+
+```powershell
+$zip = 'C:\softwares\dart_simple_live\release\v1.12.7\SimpleLive-Windows-v1.12.7.zip'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+try {
+  foreach ($name in @(
+    'simple_live_app.exe',
+    'flutter_windows.dll',
+    'dart_quickjs.dll',
+    'AssetManifest.bin',
+    'NativeAssetsManifest.json'
+  )) {
+    $archive.Entries |
+      Where-Object { $_.FullName -like "*$name" } |
+      Select-Object FullName,Length
+  }
+}
+finally {
+  $archive.Dispose()
+}
+```
+
 ## 发布目录
 
 - 主 App：`C:\softwares\dart_simple_live\release\v<版本号>`
