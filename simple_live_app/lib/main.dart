@@ -490,6 +490,7 @@ class MyApp extends StatelessWidget {
   static const MethodChannel _desktopShortcutChannel =
       MethodChannel("simple_live/desktop_shortcuts");
   static bool _desktopShortcutHandlerBound = false;
+  static bool? _desktopShortcutCaptureEnabled;
 
   const MyApp({super.key});
 
@@ -499,8 +500,10 @@ class MyApp extends StatelessWidget {
       _desktopShortcutChannel.setMethodCallHandler(
         _handleDesktopShortcutMethod,
       );
+      FocusManager.instance.addListener(_syncDesktopShortcutCaptureState);
       _desktopShortcutHandlerBound = true;
     }
+    unawaited(_syncDesktopShortcutCaptureState());
     bool isDynamicColor = AppSettingsController.instance.isDynamic.value;
     Color styleColor = Color(AppSettingsController.instance.styleColor.value);
     return DynamicColorBuilder(
@@ -632,10 +635,38 @@ class MyApp extends StatelessWidget {
     }));
   }
 
-  Future<void> _handleGlobalShortcut(KeyDownEvent event) async {
+  static bool get _isDesktopPlatform =>
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
+  static bool get _hasEditableTextFocus {
     final focusContext = FocusManager.instance.primaryFocus?.context;
-    if (focusContext != null &&
-        focusContext.findAncestorWidgetOfExactType<EditableText>() != null) {
+    return focusContext != null &&
+        focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  static Future<void> _syncDesktopShortcutCaptureState() async {
+    if (!_isDesktopPlatform) {
+      return;
+    }
+    final enabled = Get.isRegistered<LiveRoomController>() &&
+        !_hasEditableTextFocus;
+    if (_desktopShortcutCaptureEnabled == enabled) {
+      return;
+    }
+    _desktopShortcutCaptureEnabled = enabled;
+    try {
+      await _desktopShortcutChannel.invokeMethod(
+        "setShortcutCaptureEnabled",
+        {"enabled": enabled},
+      );
+    } catch (e) {
+      Log.d("桌面快捷键捕获状态同步失败: $e");
+    }
+  }
+
+  Future<void> _handleGlobalShortcut(KeyDownEvent event) async {
+    unawaited(_syncDesktopShortcutCaptureState());
+    if (_hasEditableTextFocus) {
       return;
     }
 
@@ -734,6 +765,10 @@ class MyApp extends StatelessWidget {
   }
 
   Future<dynamic> _handleDesktopShortcutMethod(MethodCall call) async {
+    if (call.method == "shortcutCaptureStateRequested") {
+      await _syncDesktopShortcutCaptureState();
+      return null;
+    }
     if (call.method != "shortcutKeyDown") {
       return null;
     }
@@ -754,9 +789,8 @@ class MyApp extends StatelessWidget {
 
   Future<void> _handleDesktopShortcutByPhysicalKey(
       String physicalKeyName) async {
-    final focusContext = FocusManager.instance.primaryFocus?.context;
-    if (focusContext != null &&
-        focusContext.findAncestorWidgetOfExactType<EditableText>() != null) {
+    unawaited(_syncDesktopShortcutCaptureState());
+    if (_hasEditableTextFocus) {
       return;
     }
 
