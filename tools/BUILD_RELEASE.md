@@ -177,3 +177,20 @@ finally {
 - 如果 `flutter_distributor` 在 `/mnt/c` 打 deb 遇到 777 权限或 bundle 路径问题，可使用 Flutter 先生成 `build/linux/x64/release/bundle`，再手工打 zip/deb；deb 的 `DEBIAN` 目录权限必须在 0755 到 0775 之间。
 - macOS/iOS 走 GitHub Actions：推送包含 release 修复的临时分支，然后触发 `publish_app_release_macos_manual.yml` 与 `publish_app_release_ios_manual.yml`，参数 `upload_release=false`，下载 artifact 后复制到主 App release 根目录。
 - 最终校验必须列出 `LastWriteTime`、`Length`、`SHA256`；Windows zip 要包含 exe、`dart_quickjs.dll`、`NativeAssetsManifest.json`；Android APK 要包含对应 ABI 的 `libdart_quickjs.so`；TV-Windows 同样要包含 exe、`dart_quickjs.dll`、`NativeAssetsManifest.json`。
+### 手工替换 Windows release 目录
+
+现象：不走 `tools/build-release.ps1`，而是手工把 `build\windows\x64\runner\Release` 覆盖到 `release\v<version>\SimpleLive-Windows-v<version>`。
+
+处理：
+
+1. 必须先执行 `flutter build windows --release`，不要用旧 debug 目录覆盖正式 release。
+2. 删除旧目标目录后，复制 Release 目录的所有子项；PowerShell 中不要用 `Copy-Item -LiteralPath (Join-Path $src '*')`，因为 `-LiteralPath` 不展开通配符。
+3. 推荐复制命令：
+
+```powershell
+Get-ChildItem -LiteralPath $src -Force |
+  Copy-Item -Destination $dst -Recurse -Force
+```
+
+4. 如果 Release 根目录缺 `dart_quickjs.dll`，从 `build\native_assets\windows\dart_quickjs.dll` 或 `.dart_tool\hooks_runner\shared\dart_quickjs\**\dart_quickjs.dll` 补入。
+5. 重建 zip 后核对：目录 `LastWriteTime`、zip `LastWriteTime`、文件数量、zip 大小、`simple_live_app.exe` SHA256、zip SHA256。

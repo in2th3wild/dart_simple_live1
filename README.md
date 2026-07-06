@@ -124,15 +124,17 @@ TV 下载建议：
 - 斗鱼直播
 - 哔哩哔哩直播
 - 抖音直播
+- 快手直播
 
 ## APP 支持平台
 
 - [x] Android
 - [x] iOS
-- [x] Windows `BETA`
-- [x] MacOS `BETA`
-- [x] Linux `BETA`
-- [x] Android TV `BETA`
+- [x] Windows
+- [x] MacOS
+- [x] Linux
+- [x] Android TV
+- [x] TV-windows（TV的UI在Windows上运行，相较纯TV，此版本支持多开）
 
 ## 环境
 

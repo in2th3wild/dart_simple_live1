@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <string>
 
 #include <flutter/standard_method_codec.h>
 
@@ -59,7 +60,19 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
-  // Give Flutter, including plugins, an opportunity to handle window messages.
+  switch (message) {
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+      if (HandleShortcutKeyDown(wparam)) {
+        return 0;
+      }
+      break;
+    default:
+      break;
+  }
+
+  // Give Flutter, including plugins and IMEs, an opportunity to handle window
+  // messages after desktop shortcut keys have been detected by physical key.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
         flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
@@ -70,12 +83,6 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   switch (message) {
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-      if (HandleShortcutKeyDown(wparam)) {
-        return 0;
-      }
-      break;
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
@@ -85,32 +92,46 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 }
 
 bool FlutterWindow::HandleShortcutKeyDown(WPARAM wparam) {
+  std::string key;
   switch (wparam) {
     case 'F':
-      return SendShortcutEvent("keyF");
+      key = "keyF";
+      break;
     case 'D':
-      return SendShortcutEvent("keyD");
+      key = "keyD";
+      break;
     case 'M':
-      return SendShortcutEvent("keyM");
+      key = "keyM";
+      break;
     case 'R':
-      return SendShortcutEvent("keyR");
+      key = "keyR";
+      break;
     case 'C':
-      return SendShortcutEvent("keyC");
+      key = "keyC";
+      break;
     case 'Q':
-      return SendShortcutEvent("keyQ");
+      key = "keyQ";
+      break;
     case 'E':
-      return SendShortcutEvent("keyE");
+      key = "keyE";
+      break;
     case 'T':
-      return SendShortcutEvent("keyT");
+      key = "keyT";
+      break;
     case 'G':
-      return SendShortcutEvent("keyG");
+      key = "keyG";
+      break;
     case 'B':
-      return SendShortcutEvent("keyB");
+      key = "keyB";
+      break;
     case 'N':
-      return SendShortcutEvent("keyN");
+      key = "keyN";
+      break;
     default:
       return false;
   }
+  SendShortcutEvent(key);
+  return false;
 }
 
 bool FlutterWindow::SendShortcutEvent(const std::string& key) {
