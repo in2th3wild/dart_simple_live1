@@ -23,6 +23,7 @@ import 'package:simple_live_tv_app/modules/live_room/player/player_controller.da
 import 'package:simple_live_tv_app/services/current_room_service.dart';
 import 'package:simple_live_tv_app/services/db_service.dart';
 import 'package:simple_live_tv_app/services/follow_user_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
 class LiveRoomController extends PlayerController with WidgetsBindingObserver {
@@ -161,6 +162,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       }
     });
   }
+
   void stopAutoExit() {
     autoExitEnable.value = false;
     autoExitTimer?.cancel();
