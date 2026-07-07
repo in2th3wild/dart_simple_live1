@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:simple_live_core/src/common/convert_helper.dart';
+import 'package:simple_live_core/src/common/core_error.dart';
 import 'package:simple_live_core/src/common/core_log.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
 import 'package:simple_live_core/src/danmaku/bilibili_danmaku.dart';
@@ -38,6 +40,11 @@ class BiliBiliSite implements LiveSite {
   String buvid3 = "";
   String buvid4 = "";
   String accessId = "";
+  static Future<void> _playInfoRequestQueue = Future.value();
+  static DateTime _lastPlayInfoRequestAt = DateTime.fromMillisecondsSinceEpoch(
+    0,
+  );
+
   Future<Map<String, String>> getHeader() async {
     if (buvid3.isEmpty) {
       var buvidInfo = await getBuvid();
@@ -131,8 +138,7 @@ class BiliBiliSite implements LiveSite {
     required LiveRoomDetail detail,
   }) async {
     List<LivePlayQuality> qualities = [];
-    var result = await HttpClient.instance.getJson(
-      "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
+    var result = await _getRoomPlayInfo(
       queryParameters: {
         "room_id": detail.roomId,
         "protocol": "0,1",
@@ -140,7 +146,6 @@ class BiliBiliSite implements LiveSite {
         "codec": "0,1",
         "platform": "web",
       },
-      header: await getHeader(),
     );
     var qualitiesMap = <int, String>{};
     for (var item in result["data"]["playurl_info"]["playurl"]["g_qn_desc"]) {
@@ -165,8 +170,7 @@ class BiliBiliSite implements LiveSite {
     required LivePlayQuality quality,
   }) async {
     List<String> urls = [];
-    var result = await HttpClient.instance.getJson(
-      "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
+    var result = await _getRoomPlayInfo(
       queryParameters: {
         "room_id": detail.roomId,
         "protocol": "0,1",
@@ -175,7 +179,6 @@ class BiliBiliSite implements LiveSite {
         "platform": "web",
         "qn": quality.data,
       },
-      header: await getHeader(),
     );
     var streamList = result["data"]["playurl_info"]["playurl"]["stream"];
     for (var streamItem in streamList) {
@@ -207,6 +210,54 @@ class BiliBiliSite implements LiveSite {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188",
       },
     );
+  }
+
+  Future<dynamic> _getRoomPlayInfo({
+    required Map<String, dynamic> queryParameters,
+  }) async {
+    const retryDelays = [
+      Duration(milliseconds: 800),
+      Duration(milliseconds: 1600),
+    ];
+    for (var attempt = 0; attempt <= retryDelays.length; attempt++) {
+      try {
+        return await _throttlePlayInfoRequest(
+          () async => HttpClient.instance.getJson(
+            "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
+            queryParameters: queryParameters,
+            header: await getHeader(),
+          ),
+        );
+      } catch (e) {
+        if (e is CoreError &&
+            e.statusCode == 429 &&
+            attempt < retryDelays.length) {
+          final delay = retryDelays[attempt];
+          CoreLog.w(
+            "B站播放信息接口触发 429，${delay.inMilliseconds}ms 后重试："
+            "roomId=${queryParameters["room_id"]} attempt=${attempt + 1}",
+          );
+          await Future.delayed(delay);
+          continue;
+        }
+        rethrow;
+      }
+    }
+    throw CoreError("B站播放信息接口重试失败");
+  }
+
+  Future<T> _throttlePlayInfoRequest<T>(Future<T> Function() action) {
+    final task = _playInfoRequestQueue.catchError((_) {}).then((_) async {
+      const minInterval = Duration(milliseconds: 450);
+      final elapsed = DateTime.now().difference(_lastPlayInfoRequestAt);
+      if (elapsed < minInterval) {
+        await Future.delayed(minInterval - elapsed);
+      }
+      _lastPlayInfoRequestAt = DateTime.now();
+      return action();
+    });
+    _playInfoRequestQueue = task.then((_) {}, onError: (_) {});
+    return task;
   }
 
   @override
