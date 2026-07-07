@@ -696,6 +696,7 @@ class AppSettingsController extends GetxController {
         style: TextStyle(
           fontSize: fontSize ?? danmuSize.value,
           fontWeight: fontWeight ?? _danmuFontWeightValue,
+          fontFamily: Platform.isWindows ? "Microsoft YaHei" : null,
           foreground: Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = strokeWidth ?? danmuStrokeWidth.value

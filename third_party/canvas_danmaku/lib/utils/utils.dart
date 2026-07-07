@@ -21,6 +21,7 @@ class Utils {
     double fontSize,
     int fontWeight, [
     double emojiScale = 1.25,
+    String? fontFamily,
   ]) {
     final parts = contentParts(content);
     final text = parts
@@ -33,6 +34,7 @@ class Utils {
         style: TextStyle(
           fontSize: fontSize,
           fontWeight: FontWeight.values[fontWeight],
+          fontFamily: fontFamily,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -51,15 +53,17 @@ class Utils {
     double fontSize,
     int fontWeight, [
     double emojiScale = 1.25,
+    String? fontFamily,
   ]) {
     final builder = ui.ParagraphBuilder(
       ui.ParagraphStyle(
         textAlign: TextAlign.left,
         fontSize: fontSize,
         fontWeight: FontWeight.values[fontWeight],
+        fontFamily: fontFamily,
         textDirection: TextDirection.ltr,
       ),
-    )..pushStyle(ui.TextStyle(color: content.color));
+    )..pushStyle(ui.TextStyle(color: content.color, fontFamily: fontFamily));
     _appendContent(builder, content, fontSize, emojiScale);
     return builder.build()
       ..layout(ui.ParagraphConstraints(width: danmakuWidth));
@@ -71,6 +75,7 @@ class Utils {
     double fontSize,
     int fontWeight, [
     double emojiScale = 1.25,
+    String? fontFamily,
   ]) {
     final Paint strokePaint = Paint()
       ..style = PaintingStyle.stroke
@@ -82,9 +87,10 @@ class Utils {
         textAlign: TextAlign.left,
         fontSize: fontSize,
         fontWeight: FontWeight.values[fontWeight],
+        fontFamily: fontFamily,
         textDirection: TextDirection.ltr,
       ),
-    )..pushStyle(ui.TextStyle(foreground: strokePaint));
+    )..pushStyle(ui.TextStyle(foreground: strokePaint, fontFamily: fontFamily));
     _appendContent(strokeBuilder, content, fontSize, emojiScale);
 
     return strokeBuilder.build()

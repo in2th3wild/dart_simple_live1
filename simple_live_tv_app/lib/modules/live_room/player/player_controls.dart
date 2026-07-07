@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -277,6 +279,7 @@ Widget buildDanmuView(VideoState videoState, LiveRoomController controller) {
     createdController: controller.initDanmakuController,
     option: DanmakuOption(
       fontSize: AppSettingsController.instance.danmuSize.value.w,
+      fontFamily: Platform.isWindows ? "Microsoft YaHei" : null,
       area: AppSettingsController.instance.danmuArea.value,
       lineHeight: 1.25,
       emojiScale: 1.4,

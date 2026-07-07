@@ -10,6 +10,7 @@ class SpecialDanmakuPainter extends CustomPainter {
   final List<DanmakuItem> specialDanmakuItems;
   final double fontSize;
   final int fontWeight;
+  final String? fontFamily;
   final bool running;
   final int tick;
   final int batchThreshold;
@@ -19,6 +20,7 @@ class SpecialDanmakuPainter extends CustomPainter {
     this.specialDanmakuItems,
     this.fontSize,
     this.fontWeight,
+    this.fontFamily,
     this.running,
     this.tick, {
     this.batchThreshold = 10, // 默认值为10，可以自行调整
@@ -46,12 +48,18 @@ class SpecialDanmakuPainter extends CustomPainter {
   }
 
   void _paintSpecialDanmaku(
-      Canvas canvas, SpecialDanmakuContentItem item, Size size, int elapsed) {
+    Canvas canvas,
+    SpecialDanmakuContentItem item,
+    Size size,
+    int elapsed,
+  ) {
     // 透明度动画
-    late final alpha = item.alphaTween?.transform(elapsed / item.duration) ??
+    late final alpha =
+        item.alphaTween?.transform(elapsed / item.duration) ??
         item.color.opacity;
-    final color =
-        item.alphaTween == null ? item.color : item.color.withOpacity(alpha);
+    final color = item.alphaTween == null
+        ? item.color
+        : item.color.withOpacity(alpha);
     // 文本
     if (color != item.painterCache?.text?.style?.color) {
       item.painterCache!.text = TextSpan(
@@ -60,6 +68,7 @@ class SpecialDanmakuPainter extends CustomPainter {
           color: color,
           fontSize: item.fontSize,
           fontWeight: FontWeight.values[fontWeight],
+          fontFamily: fontFamily,
           shadows: item.hasStroke
               ? [Shadow(color: Colors.black.withOpacity(alpha), blurRadius: 2)]
               : null,
@@ -73,8 +82,12 @@ class SpecialDanmakuPainter extends CustomPainter {
     // else 位移动画
     late double dx, dy;
     if (elapsed > item.translationStartDelay) {
-      late double translateProgress = item.easingType.transform(min(1.0,
-          (elapsed - item.translationStartDelay) / item.translationDuration));
+      late double translateProgress = item.easingType.transform(
+        min(
+          1.0,
+          (elapsed - item.translationStartDelay) / item.translationDuration,
+        ),
+      );
 
       double getOffset(Tween<double> tween) => tween is ConstantTween
           ? tween.begin!

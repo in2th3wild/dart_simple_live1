@@ -5,6 +5,9 @@ class DanmakuOption {
   /// 字体粗细
   final int fontWeight;
 
+  /// 字体族
+  final String? fontFamily;
+
   /// 显示区域，0.1-1.0
   final double area;
 
@@ -43,6 +46,7 @@ class DanmakuOption {
   DanmakuOption({
     this.fontSize = 16,
     this.fontWeight = 4,
+    this.fontFamily,
     this.area = 1.0,
     this.lineHeight = 1.0,
     this.emojiScale = 1.25,
@@ -60,6 +64,7 @@ class DanmakuOption {
   DanmakuOption copyWith({
     double? fontSize,
     int? fontWeight,
+    String? fontFamily,
     double? area,
     double? lineHeight,
     double? emojiScale,
@@ -79,6 +84,7 @@ class DanmakuOption {
       emojiScale: emojiScale ?? this.emojiScale,
       fontSize: fontSize ?? this.fontSize,
       fontWeight: fontWeight ?? this.fontWeight,
+      fontFamily: fontFamily ?? this.fontFamily,
       duration: duration ?? this.duration,
       opacity: opacity ?? this.opacity,
       hideTop: hideTop ?? this.hideTop,

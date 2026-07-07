@@ -185,6 +185,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
               color: content.color,
               fontSize: content.fontSize,
               fontWeight: FontWeight.values[_option.fontWeight],
+              fontFamily: _option.fontFamily,
               shadows: content.hasStroke
                   ? [
                       Shadow(
@@ -219,6 +220,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
         _option.fontSize,
         _option.fontWeight,
         _option.emojiScale,
+        _option.fontFamily,
       );
       final danmakuWidth = contentSize.width;
       final danmakuHeight = contentSize.height;
@@ -229,6 +231,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
         _option.fontSize,
         _option.fontWeight,
         _option.emojiScale,
+        _option.fontFamily,
       );
 
       ui.Paragraph? strokeParagraph;
@@ -239,6 +242,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
           _option.fontSize,
           _option.fontWeight,
           _option.emojiScale,
+          _option.fontFamily,
         );
       }
 
@@ -470,6 +474,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
   bool _isSameOption(DanmakuOption a, DanmakuOption b) {
     return a.fontSize == b.fontSize &&
         a.fontWeight == b.fontWeight &&
+        a.fontFamily == b.fontFamily &&
         a.area == b.area &&
         a.lineHeight == b.lineHeight &&
         a.emojiScale == b.emojiScale &&
@@ -588,7 +593,10 @@ class _DanmakuScreenState extends State<DanmakuScreen>
     final textPainter = TextPainter(
       text: TextSpan(
         text: '弹幕',
-        style: TextStyle(fontSize: _option.fontSize),
+        style: TextStyle(
+          fontSize: _option.fontSize,
+          fontFamily: _option.fontFamily,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -632,6 +640,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
                             _option.duration,
                             _option.fontSize,
                             _option.fontWeight,
+                            _option.fontFamily,
                             _option.showStroke,
                             _danmakuHeight,
                             _running,
@@ -655,6 +664,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
                             _option.duration,
                             _option.fontSize,
                             _option.fontWeight,
+                            _option.fontFamily,
                             _option.showStroke,
                             _danmakuHeight,
                             _running,
@@ -676,6 +686,7 @@ class _DanmakuScreenState extends State<DanmakuScreen>
                             _specialDanmakuItems,
                             _option.fontSize,
                             _option.fontWeight,
+                            _option.fontFamily,
                             _running,
                             _tick,
                           ),

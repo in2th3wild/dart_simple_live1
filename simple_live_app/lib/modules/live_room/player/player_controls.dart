@@ -900,6 +900,7 @@ Widget buildDanmuView(VideoState videoState, LiveRoomController controller) {
                   createdController: controller.initDanmakuController,
                   option: DanmakuOption(
                     fontSize: settings.danmuSize.value,
+                    fontFamily: Platform.isWindows ? "Microsoft YaHei" : null,
                     area: settings.resolveDanmuEffectiveArea(
                       viewportHeight: viewportHeight,
                       area: settings.danmuArea.value,

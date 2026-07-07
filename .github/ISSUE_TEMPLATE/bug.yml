@@ -68,7 +68,7 @@ body:
     id: logs
     attributes:
       label: 日志
-      description: 请上传日志文件
+      description: 请上传日志文件；没有日志的 BUG Issue 默认不会查看或处理。如果无法获取日志，请加群反馈 BUG 问题
       placeholder: |
         可以在[其他设置]-[开启日志记录]后获取日志文件
  

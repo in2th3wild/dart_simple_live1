@@ -56,6 +56,11 @@ class BiliBiliDanmaku implements LiveDanmaku {
   @override
   Future start(dynamic args) async {
     danmakuArgs = args as BiliBiliDanmakuArgs;
+    if (danmakuArgs.token.isEmpty) {
+      CoreLog.w("B站弹幕信息缺失，跳过弹幕连接：roomId=${danmakuArgs.roomId}");
+      onClose?.call("弹幕信息缺失，已跳过弹幕连接");
+      return;
+    }
     webScoketUtils = WebScoketUtils(
       url: "wss://${args.serverHost}/sub",
       heartBeatTime: heartbeatTime,

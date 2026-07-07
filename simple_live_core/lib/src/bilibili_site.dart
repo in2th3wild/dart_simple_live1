@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:simple_live_core/src/common/convert_helper.dart';
+import 'package:simple_live_core/src/common/core_log.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
 import 'package:simple_live_core/src/danmaku/bilibili_danmaku.dart';
 import 'package:simple_live_core/src/interface/live_danmaku.dart';
@@ -246,28 +247,35 @@ class BiliBiliSite implements LiveSite {
         "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";
     var danmuInfoUrl = "$danmuInfoBaseUrl?id=$realRoomId";
     var queryParams = await getWbiSign(danmuInfoUrl);
-    var roomDanmakuResult = await HttpClient.instance.getJson(
-      danmuInfoBaseUrl,
-      queryParameters: queryParams,
-      header: await getHeader(),
-    );
-
-    // Fix Issue #56: 防御性检查，B站风控时data为null
-    final danmuData = roomDanmakuResult["data"];
-    if (danmuData == null || danmuData is! Map) {
-      throw Exception(
-        "获取直播间信息失败，可能需要验证。请在浏览器中打开该直播间完成图形验证，或退出登录后重试。",
+    Map? danmuData;
+    List<String> serverHosts = [];
+    try {
+      var roomDanmakuResult = await HttpClient.instance.getJson(
+        danmuInfoBaseUrl,
+        queryParameters: queryParams,
+        header: await getHeader(),
       );
-    }
 
-    final hostListRaw = danmuData["host_list"];
-    if (hostListRaw == null || hostListRaw is! List) {
-      throw Exception("直播间弹幕服务器信息缺失，请稍后重试");
+      // B站可能只拦截弹幕信息接口。此接口失败不应阻止进入直播间。
+      final data = roomDanmakuResult["data"];
+      if (data is Map) {
+        danmuData = data;
+        final hostListRaw = data["host_list"];
+        if (hostListRaw is List) {
+          serverHosts = hostListRaw
+              .map<String>((e) => e["host"].toString())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        }
+      } else {
+        CoreLog.w(
+          "B站弹幕信息为空：roomId=$realRoomId code=${roomDanmakuResult["code"]} "
+          "message=${roomDanmakuResult["message"]}",
+        );
+      }
+    } catch (e) {
+      CoreLog.w("B站弹幕信息获取失败：roomId=$realRoomId error=$e");
     }
-
-    List<String> serverHosts = (hostListRaw as List)
-        .map<String>((e) => e["host"].toString())
-        .toList();
 
     //var buvid = await getBuvid();
     String? liveStartTime = roomInfo["room_info"]?["live_start_time"]
@@ -287,7 +295,7 @@ class BiliBiliSite implements LiveSite {
       danmakuData: BiliBiliDanmakuArgs(
         roomId: int.tryParse(realRoomId) ?? 0,
         uid: userId,
-        token: danmuData["token"].toString(),
+        token: danmuData?["token"]?.toString() ?? "",
         serverHost: serverHosts.isNotEmpty
             ? serverHosts.first
             : "broadcastlv.chat.bilibili.com",
