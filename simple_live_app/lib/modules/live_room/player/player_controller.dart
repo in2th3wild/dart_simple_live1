@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:auto_orientation_v2/auto_orientation_v2.dart';
@@ -50,6 +50,7 @@ class _DanmakuReplayEntry {
 const int _kDanmakuReplayLimit = 300;
 
 mixin PlayerMixin {
+  bool _playerInitialized = false;
   GlobalKey<VideoState> globalPlayerKey = GlobalKey<VideoState>();
   GlobalKey globalDanmuKey = GlobalKey();
 
@@ -63,10 +64,14 @@ mixin PlayerMixin {
     ),
   );
 
-  /// 初始化播放器并设置 ao 参数
+  /// 初始化播放器并设置静态 mpv 参数。
   Future<void> initializePlayer() async {
+    if (_playerInitialized) {
+      return;
+    }
+    _playerInitialized = true;
     await MpvOptionsService.applyToPlayer(player);
-    var pp = player.platform as NativePlayer;
+    final nativePlayer = player.platform as NativePlayer;
     // 设置音频输出驱动
     if (AppSettingsController.instance.customPlayerOutput.value) {
       if (player.platform is NativePlayer) {
@@ -78,7 +83,7 @@ mixin PlayerMixin {
     }
     // media_kit 仓库更新导致的问题，临时解决办法
     if (Platform.isAndroid) {
-      await pp.setProperty('force-seekable', 'yes');
+      await nativePlayer.setProperty('force-seekable', 'yes');
     }
   }
 
@@ -937,6 +942,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   Future enablePIP() async {
     if (!Platform.isAndroid) {
+      SmartDialog.showToast("当前平台暂不支持小窗播放");
       return;
     }
     if (await pip.isPipAvailable == false) {
@@ -1056,9 +1062,9 @@ mixin PlayerGestureControlMixin
       if (currentPlayerVolume > 0) {
         _currentVolume = currentPlayerVolume.clamp(0.0, 100.0) / 100;
       } else {
-        _currentVolume =
-            AppSettingsController.instance.playerVolume.value.clamp(0.0, 100.0) /
-                100;
+        _currentVolume = AppSettingsController.instance.playerVolume.value
+                .clamp(0.0, 100.0) /
+            100;
       }
     } else if (Platform.isAndroid || Platform.isIOS) {
       _currentVolume = await VolumeController.instance.getVolume();
@@ -1548,5 +1554,3 @@ class PlayerController extends BaseController
     super.onClose();
   }
 }
-
-

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:canvas_danmaku/canvas_danmaku.dart';
@@ -527,7 +527,7 @@ Widget _buildFullTopBar(
                 size: 24,
               ),
             ),
-            if (Platform.isAndroid || Platform.isIOS)
+            if (Platform.isAndroid)
               IconButton(
                 onPressed: controller.enablePIP,
                 icon: const Icon(
@@ -797,16 +797,7 @@ Widget _buildNormalBottomBar(
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
               ),
-            if (Platform.isIOS)
-              IconButton(
-                onPressed: controller.enablePIP,
-                icon: const Icon(
-                  Icons.picture_in_picture,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              )
-            else if (!Platform.isAndroid)
+            if (!Platform.isAndroid && !Platform.isIOS)
               IconButton(
                 onPressed: controller.enterSmallWindow,
                 icon: const Icon(
@@ -1398,10 +1389,3 @@ class _PlayerSuperChatOverlayState extends State<PlayerSuperChatOverlay> {
     );
   }
 }
-
-
-
-
-
-
-

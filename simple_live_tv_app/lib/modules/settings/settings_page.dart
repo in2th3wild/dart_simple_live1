@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -7,6 +9,7 @@ import 'package:simple_live_tv_app/app/app_style.dart';
 import 'package:simple_live_tv_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_tv_app/app/utils.dart';
 import 'package:simple_live_tv_app/modules/settings/settings_controller.dart';
+import 'package:simple_live_tv_app/modules/settings/follow_update_interval_options.dart';
 import 'package:simple_live_tv_app/services/bilibili_account_service.dart';
 import 'package:simple_live_tv_app/services/douyin_account_service.dart';
 import 'package:simple_live_tv_app/services/follow_user_service.dart';
@@ -349,22 +352,7 @@ class SettingsPage extends GetView<SettingsController> {
           ),
         ),
         AppStyle.vGap24,
-        Obx(
-          () => HighlightListTile(
-            focusNode: controller.autoUpdateFollowDurationFocusNode,
-            autofocus:
-                controller.autoUpdateFollowDurationFocusNode.isFoucsed.value,
-            title: "自动更新间隔",
-            subtitle: _formatFollowUpdateDuration(
-              AppSettingsController.instance.autoUpdateFollowDuration.value,
-            ),
-            leading: const Icon(Icons.timer_outlined),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              setFollowUpdateTimer(context);
-            },
-          ),
-        ),
+        _buildFollowUpdateDurationSetting(context),
         AppStyle.vGap24,
         Obx(
           () => SettingsItemWidget(
@@ -414,8 +402,63 @@ class SettingsPage extends GetView<SettingsController> {
     );
   }
 
+  Widget _buildFollowUpdateDurationSetting(BuildContext context) {
+    if (_isDesktopTv) {
+      return Obx(
+        () => HighlightListTile(
+          focusNode: controller.autoUpdateFollowDurationFocusNode,
+          autofocus:
+              controller.autoUpdateFollowDurationFocusNode.isFoucsed.value,
+          title: "自动更新间隔",
+          subtitle: _formatFollowUpdateDuration(
+            AppSettingsController.instance.autoUpdateFollowDuration.value,
+          ),
+          leading: const Icon(Icons.timer_outlined),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            setFollowUpdateTimer(context);
+          },
+        ),
+      );
+    }
+    return Obx(() {
+      final value = _normalizePresetDurationForBuild(
+        AppSettingsController.instance.autoUpdateFollowDuration.value,
+      );
+      return SettingsItemWidget(
+        foucsNode: controller.autoUpdateFollowDurationFocusNode,
+        autofocus: controller.autoUpdateFollowDurationFocusNode.isFoucsed.value,
+        title: "自动更新间隔",
+        items: FollowUpdateIntervalOptions.presetLabels,
+        value: value,
+        onChanged: (e) {
+          AppSettingsController.instance.setAutoUpdateFollowDuration(e as int);
+          FollowUserService.instance.initTimer();
+        },
+      );
+    });
+  }
+
+  bool get _isDesktopTv =>
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
   String _formatFollowUpdateDuration(int minutes) {
-    return "${minutes ~/ 60}小时${minutes % 60}分钟";
+    return FollowUpdateIntervalOptions.format(minutes);
+  }
+
+  int _normalizePresetDurationForBuild(int minutes) {
+    final value = FollowUpdateIntervalOptions.normalizeToPreset(minutes);
+    if (value != minutes) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (AppSettingsController.instance.autoUpdateFollowDuration.value !=
+            minutes) {
+          return;
+        }
+        AppSettingsController.instance.setAutoUpdateFollowDuration(value);
+        FollowUserService.instance.initTimer();
+      });
+    }
+    return value;
   }
 
   void setFollowUpdateTimer(BuildContext context) async {

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
@@ -29,6 +29,7 @@ import 'package:simple_live_app/services/current_room_service.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/live_subtitle_service.dart';
+import 'package:simple_live_app/services/mpv_options_service.dart';
 import 'package:simple_live_app/widgets/filter_button.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
@@ -1068,6 +1069,7 @@ class LiveRoomController extends PlayerController
       }
     });
   }
+
   void stopAutoExit() {
     autoExitEnable.value = false;
     autoExitTimer?.cancel();
@@ -1500,9 +1502,24 @@ class LiveRoomController extends PlayerController
         finalUrl = finalUrl.replaceAll("http://", "https://");
       }
 
+      final previousWidth = player.state.width;
+      final previousHeight = player.state.height;
+      final wasPlaying = player.state.playing;
+      Log.i(
+        "准备打开播放器：target=${site.id}/$roomId "
+        "quality=${currentQualityInfo.value} line=${currentLineIndex + 1}/${playUrls.length} "
+        "previousPlaying=$wasPlaying previousSize=${previousWidth}x$previousHeight "
+        "${MpvOptionsService.diagnosticsSummary()}",
+      );
+
       // 重新初始化播放器，并带上当前线路的请求头。
       final openStopwatch = Stopwatch()..start();
       await initializePlayer();
+      if (_roomDisposed) {
+        return;
+      }
+
+      await _stopDesktopPlayerBeforeOpen();
       if (_roomDisposed) {
         return;
       }
@@ -1515,7 +1532,9 @@ class LiveRoomController extends PlayerController
       );
       openStopwatch.stop();
       Log.i(
-        "播放器打开完成：${site.id}/$roomId ${openStopwatch.elapsedMilliseconds}ms",
+        "播放器打开完成：${site.id}/$roomId ${openStopwatch.elapsedMilliseconds}ms "
+        "line=${currentLineIndex + 1}/${playUrls.length} "
+        "size=${player.state.width}x${player.state.height}",
       );
       unawaited(
         LiveSubtitleService.instance.syncPreviewFromSettings(
@@ -1526,6 +1545,21 @@ class LiveRoomController extends PlayerController
       Log.d("播放链接\n$finalUrl");
     } finally {
       _playerReopening = false;
+    }
+  }
+
+  Future<void> _stopDesktopPlayerBeforeOpen() async {
+    if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      return;
+    }
+    if (!player.state.playing && player.state.playlist.medias.isEmpty) {
+      return;
+    }
+    try {
+      await player.stop();
+      await Future.delayed(const Duration(milliseconds: 120));
+    } catch (e, stackTrace) {
+      Log.e("切换直播间前停止旧播放失败: $e", stackTrace);
     }
   }
 
@@ -2595,8 +2629,8 @@ class LiveRoomController extends PlayerController
       () => FollowUserItem(
         item: item,
         showSpecialMark: true,
-        playing: rxSite.value.id == item.siteId &&
-            rxRoomId.value == item.roomId,
+        playing:
+            rxSite.value.id == item.siteId && rxRoomId.value == item.roomId,
         onTap: () {
           onClose();
           resetRoom(
@@ -2929,13 +2963,3 @@ ${errorStackTrace ?? ""}''');
     super.onClose();
   }
 }
-
-
-
-
-
-
-
-
-
-

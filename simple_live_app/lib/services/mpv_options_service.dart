@@ -27,7 +27,8 @@ class MpvOptionsService {
       "sigmoid-upscaling": "no",
       "deband": "no",
     },
-    "balanced": {
+    "balanced": <String, String>{},
+    "balancedDesktop": {
       "profile": "gpu-hq",
       "hwdec": "auto-safe",
       "vo": "gpu",
@@ -50,10 +51,16 @@ class MpvOptionsService {
   };
 
   static Map<String, String> effectiveOptions() {
+    return effectiveOptionsWithSource().options;
+  }
+
+  static MpvEffectiveOptions effectiveOptionsWithSource() {
     final settings = AppSettingsController.instance;
     final profile = settings.mpvProfile.value;
-    final options = <String, String>{
-      ...desktopProfiles[profile] ?? desktopProfiles["balanced"]!,
+    final profileOptions = _profileOptionsForPlatform(profile);
+    final options = <String, String>{...profileOptions};
+    final source = <String, String>{
+      for (final key in profileOptions.keys) key: "profile:$profile",
     };
     if (settings.customPlayerOutput.value) {
       final vo = settings.videoOutputDriver.value.trim();
@@ -61,17 +68,28 @@ class MpvOptionsService {
       final ao = settings.audioOutputDriver.value.trim();
       if (vo.isNotEmpty) {
         options["vo"] = vo;
+        source["vo"] = "custom";
       }
       if (hwdec.isNotEmpty) {
         options["hwdec"] = hwdec;
+        source["hwdec"] = "custom";
       }
       if (ao.isNotEmpty) {
         options["ao"] = ao;
+        source["ao"] = "custom";
       }
     }
-    options.addAll(parseOptions(settings.mpvAdvancedOptions.value));
-    options.addAll(parseConfFile(settings.importedMpvConfPath.value));
-    return options;
+    final advancedOptions = parseOptions(settings.mpvAdvancedOptions.value);
+    options.addAll(advancedOptions);
+    for (final key in advancedOptions.keys) {
+      source[key] = "advanced";
+    }
+    final confOptions = parseConfFile(settings.importedMpvConfPath.value);
+    options.addAll(confOptions);
+    for (final key in confOptions.keys) {
+      source[key] = "conf";
+    }
+    return MpvEffectiveOptions(options, source);
   }
 
   static VideoControllerConfiguration videoControllerConfiguration() {
@@ -82,10 +100,11 @@ class MpvOptionsService {
         hwdec: 'mediacodec',
       );
     }
-    final options = effectiveOptions();
+    final effectiveOptions = effectiveOptionsWithSource();
+    final options = effectiveOptions.options;
     if (!Platform.isAndroid) {
       return VideoControllerConfiguration(
-        hwdec: options["hwdec"],
+        hwdec: _desktopVideoControllerHwdec(effectiveOptions),
         enableHardwareAcceleration: settings.hardwareDecode.value,
       );
     }
@@ -115,6 +134,41 @@ class MpvOptionsService {
         Log.d("mpv option skipped: ${entry.key}=${entry.value} $e");
       }
     }
+  }
+
+  static Map<String, String> _profileOptionsForPlatform(String profile) {
+    if (profile == "balanced") {
+      return Platform.isWindows
+          ? desktopProfiles["balanced"]!
+          : desktopProfiles["balancedDesktop"]!;
+    }
+    return desktopProfiles[profile] ?? desktopProfiles["balanced"]!;
+  }
+
+  static String? _desktopVideoControllerHwdec(MpvEffectiveOptions options) {
+    final source = options.source["hwdec"];
+    if (Platform.isWindows && source == "profile:balanced") {
+      return null;
+    }
+    return options.options["hwdec"];
+  }
+
+  static String diagnosticsSummary() {
+    final effectiveOptions = effectiveOptionsWithSource();
+    final options = effectiveOptions.options;
+    String value(String key) {
+      final optionValue = options[key];
+      final source = effectiveOptions.source[key];
+      if (optionValue == null || optionValue.isEmpty) {
+        return "default";
+      }
+      return source == null ? optionValue : "$optionValue($source)";
+    }
+
+    return "profile=${AppSettingsController.instance.mpvProfile.value}, "
+        "hardwareDecode=${AppSettingsController.instance.hardwareDecode.value}, "
+        "vo=${value("vo")}, hwdec=${value("hwdec")}, "
+        "mpvOptions=${options.length}";
   }
 
   static Map<String, String> parseOptions(String raw) {
@@ -189,4 +243,11 @@ class MpvOptionsService {
     }
     return line.substring(0, index);
   }
+}
+
+class MpvEffectiveOptions {
+  final Map<String, String> options;
+  final Map<String, String> source;
+
+  const MpvEffectiveOptions(this.options, this.source);
 }
