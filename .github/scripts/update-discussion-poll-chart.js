@@ -80,10 +80,26 @@ function isPermissionError(error) {
   return message.includes("FORBIDDEN") || message.includes("Resource not accessible by integration");
 }
 
-function pickLatestManagedComment(comments) {
+function pickManagedComments(comments) {
   return comments
     .filter((comment) => comment.body.includes(marker))
-    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+}
+
+async function removeDuplicateComments(comments, keepId) {
+  for (const comment of comments) {
+    if (comment.id === keepId) {
+      continue;
+    }
+
+    if (!comment.viewerCanDelete) {
+      console.warn(`Managed comment ${comment.id} is not deletable by the current token; left it untouched.`);
+      continue;
+    }
+
+    await graphql(deleteMutation, { commentId: comment.id });
+    console.log(`Deleted duplicate poll chart comment: ${comment.id}`);
+  }
 }
 
 const query = `
@@ -108,6 +124,7 @@ query($owner:String!, $repo:String!, $number:Int!) {
           body
           createdAt
           viewerCanUpdate
+          viewerCanDelete
         }
       }
     }
@@ -128,6 +145,13 @@ mutation($commentId:ID!, $body:String!) {
   }
 }`;
 
+const deleteMutation = `
+mutation($commentId:ID!) {
+  deleteDiscussionComment(input:{id:$commentId}) {
+    clientMutationId
+  }
+}`;
+
 (async () => {
   const data = await graphql(query, { owner, repo, number: discussionNumber });
   const discussion = data.repository.discussion;
@@ -145,42 +169,37 @@ mutation($commentId:ID!, $body:String!) {
     return;
   }
 
-  const managedComments = pickLatestManagedComment(discussion.comments.nodes);
+  const managedComments = pickManagedComments(discussion.comments.nodes);
   const editable = managedComments.find((comment) => comment.viewerCanUpdate);
-  const current = editable || managedComments[0];
 
-  if (!current) {
+  if (!managedComments.length) {
     const result = await graphql(addMutation, { discussionId: discussion.id, body });
     console.log(`Created poll chart comment: ${result.addDiscussionComment.comment.id}`);
     return;
   }
 
-  if (current.viewerCanUpdate) {
-    try {
-      await graphql(updateMutation, { commentId: current.id, body });
-      console.log(`Updated poll chart comment: ${current.id}`);
+  if (!editable) {
+    const current = managedComments[0];
+    if (hasCurrentPollContent(current.body, content)) {
+      console.log(`Managed comment ${current.id} already has the latest poll data; skipped timestamp-only refresh.`);
       return;
-    } catch (error) {
-      if (!isPermissionError(error)) {
-        throw error;
-      }
-      console.warn(`Unable to update managed comment ${current.id}; falling back to add a new comment.`);
     }
-  } else if (hasCurrentPollContent(current.body, content)) {
-    console.log(`Managed comment ${current.id} already has the latest poll data; skipped timestamp-only refresh.`);
-    return;
-  } else {
-    console.warn(`Managed comment ${current.id} is not editable by the current token; creating a new comment instead.`);
+    throw new Error("Found an existing poll chart comment, but the current token cannot update it. Configure DISCUSSION_BOT_TOKEN with permission to edit the original comment instead of creating duplicate comments.");
   }
 
   try {
-    const result = await graphql(addMutation, { discussionId: discussion.id, body });
-    console.log(`Created poll chart comment: ${result.addDiscussionComment.comment.id}`);
+    await graphql(updateMutation, { commentId: editable.id, body });
+    console.log(`Updated poll chart comment: ${editable.id}`);
   } catch (error) {
-    if (isPermissionError(error) && hasCurrentPollContent(current.body, content)) {
-      console.log(`Managed comment ${current.id} already has the latest poll data; skipped after add permission failure.`);
+    if (!isPermissionError(error)) {
+      throw error;
+    }
+    if (hasCurrentPollContent(editable.body, content)) {
+      console.log(`Managed comment ${editable.id} already has the latest poll data; skipped after update permission failure.`);
       return;
     }
-    throw error;
+    throw new Error(`Unable to update managed comment ${editable.id}. Configure DISCUSSION_BOT_TOKEN with permission to edit the original comment.`);
   }
+
+  await removeDuplicateComments(managedComments, editable.id);
 })();

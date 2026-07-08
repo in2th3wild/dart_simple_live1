@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   update-poll-chart:
+    if: github.repository == 'June6699/dart_simple_live'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
